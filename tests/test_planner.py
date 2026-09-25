@@ -2,9 +2,9 @@ from pathlib import Path
 
 from ytmusicapi.exceptions import YTMusicServerError
 
-from playlist_bridge.models import Track
-from playlist_bridge.planner import _search_with_retry, save_review, scan
-from playlist_bridge.transfer import ReviewError, reviewed_video_ids
+from spot2ytmusic.models import Track
+from spot2ytmusic.planner import _search_with_retry, save_review, scan
+from spot2ytmusic.transfer import ReviewError, reviewed_video_ids
 
 
 class SearchClient:
@@ -69,7 +69,7 @@ def test_transient_search_failure_retries(monkeypatch):
                 raise YTMusicServerError("Server returned HTTP 429: Too Many Requests")
             return [{"videoId": "abcdefghijk"}]
 
-    monkeypatch.setattr("playlist_bridge.planner.time.sleep", lambda seconds: None)
+    monkeypatch.setattr("spot2ytmusic.planner.time.sleep", lambda seconds: None)
     client = RetryClient()
     assert _search_with_retry(client, "song artist", "songs") == [{"videoId": "abcdefghijk"}]
     assert client.calls == 2

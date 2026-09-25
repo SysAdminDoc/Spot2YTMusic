@@ -3,8 +3,8 @@ requires = ["setuptools>=75", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "playlist-bridge"
-version = "0.0.1"
+name = "spot2ytmusic"
+version = "0.0.2"
 description = "Review Spotify CSV matches before moving playlists to YouTube Music"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,7 +17,7 @@ dependencies = ["ytmusicapi==1.12.3"]
 dev = ["pytest>=8,<9", "ruff>=0.8,<1", "build>=1,<2"]
 
 [project.scripts]
-playlist-bridge = "playlist_bridge.cli:main"
+spot2ytmusic = "spot2ytmusic.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from playlist_bridge.csvio import parse_duration, read_tracks
+from spot2ytmusic.csvio import parse_duration, read_tracks
 
 
 def test_reads_inventory_and_preserves_positions(tmp_path: Path):

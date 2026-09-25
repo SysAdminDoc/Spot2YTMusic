@@ -1,5 +1,5 @@
-from playlist_bridge.matching import rank_results, score_result, version_flags
-from playlist_bridge.models import Track
+from spot2ytmusic.matching import rank_results, score_result, version_flags
+from spot2ytmusic.models import Track
 
 
 def track(title="WE ON GO", artist="BIA", seconds=168):

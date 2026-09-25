@@ -47,9 +47,9 @@ def _select_tracks(path: Path, playlists: list[str] | None) -> list:
 
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="playlist-bridge", description="Review Spotify CSV matches before adding them to YouTube Music"
+        prog="spot2ytmusic", description="Review Spotify CSV matches before adding them to YouTube Music"
     )
-    parser.add_argument("--version", action="version", version=f"Playlist Bridge v{__version__}")
+    parser.add_argument("--version", action="version", version=f"Spot2YTMusic v{__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
     inspect = commands.add_parser("inspect", help="Show playlists and song counts in a CSV")
     inspect.add_argument("csv", type=Path)
@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
             plan = scan(
                 _client(),
                 tracks,
-                args.cache or args.plan.with_name("playlist-bridge.cache.sqlite3"),
+                args.cache or args.plan.with_name("spot2ytmusic.cache.sqlite3"),
                 args.delay,
             )
             save_plan(args.plan, plan)

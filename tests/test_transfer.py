@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from playlist_bridge.transfer import RemoteStateError, apply_playlist
+from spot2ytmusic.transfer import RemoteStateError, apply_playlist
 
 
 class MusicClient:

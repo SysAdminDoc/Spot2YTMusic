@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.2
+
+- Rename the project, Python package, and command to Spot2YTMusic.
+- Publish the source and installable package on GitHub.
+
 ## v0.0.1
 
 - Read Spotify playlist CSV files without a Spotify developer account.
