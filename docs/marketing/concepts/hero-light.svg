@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Spot2YTMusic light header concept</title>
+  <desc id="desc">Music tracks move through a review mark toward a playlist.</desc>
+  <defs>
+    <linearGradient id="paper" x2="1" y2="1">
+      <stop stop-color="#f8f9ff"/>
+      <stop offset="1" stop-color="#e9f7f8"/>
+    </linearGradient>
+    <linearGradient id="move" x2="1" y2="0">
+      <stop stop-color="#7054cf"/>
+      <stop offset="1" stop-color="#008b98"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="1278" height="418" rx="28" fill="url(#paper)" stroke="#d8deeb" stroke-width="2"/>
+  <path d="M0 315h1280" stroke="#dfe6f1" stroke-width="2"/>
+  <g fill="none" stroke="url(#move)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M93 128h100"/>
+    <path d="M93 190h100"/>
+    <path d="M93 252h100"/>
+    <path d="m200 190 43 0-20-20m20 20-20 20"/>
+  </g>
+  <circle cx="278" cy="190" r="36" fill="#e0f7f3" stroke="#008b98" stroke-width="7"/>
+  <path d="m261 190 12 12 23-26" fill="none" stroke="#008b98" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="375" y="176" fill="#19223d" font-family="Segoe UI, Arial, sans-serif" font-size="76" font-weight="750">Spot2YTMusic</text>
+  <text x="379" y="228" fill="#465875" font-family="Segoe UI, Arial, sans-serif" font-size="29">Review the match. Keep the order.</text>
+  <text x="378" y="362" fill="#486079" font-family="Segoe UI, Arial, sans-serif" font-size="19" letter-spacing="2">SPOTIFY CSV  /  REVIEW SHEET  /  PRIVATE PLAYLIST</text>
+</svg>

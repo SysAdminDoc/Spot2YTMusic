@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.3
+
+- Rewrite the README around reviewed matches, CSV setup, privacy, and recovery.
+- Add an evergreen header and keep the original and alternate artwork in the concept archive.
+- Add package links and search terms for people finding the project on GitHub.
+
 ## v0.0.2
 
 - Rename the project, Python package, and command to Spot2YTMusic.

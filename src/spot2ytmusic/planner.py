@@ -112,7 +112,7 @@ def scan(client: object, tracks: list[Track], cache_path: Path, delay: float = 0
         cache.close()
     return {
         "schema": SCHEMA_VERSION,
-        "tool_version": "0.0.2",
+        "tool_version": "0.0.3",
         "created_at": datetime.now(UTC).isoformat(),
         "entries": [entry.to_dict() for entry in entries],
     }

@@ -4,14 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spot2ytmusic"
-version = "0.0.2"
-description = "Review Spotify CSV matches before moving playlists to YouTube Music"
+version = "0.0.3"
+description = "Move Spotify CSV playlists to YouTube Music with reviewed matches and checked resume"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{name = "SysAdminDoc"}]
 dependencies = ["ytmusicapi==1.12.3"]
+keywords = ["spotify", "youtube-music", "playlist-migration"]
+
+[project.urls]
+Repository = "https://github.com/SysAdminDoc/Spot2YTMusic"
+Issues = "https://github.com/SysAdminDoc/Spot2YTMusic/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<9", "ruff>=0.8,<1", "build>=1,<2"]
