@@ -15,7 +15,7 @@ This is a local command line tool. It needs no Spotify developer account because
 
 ## Get a CSV
 
-The file needs a song title and artist column. [Exportify](https://github.com/watsonbox/exportify) is one way to export Spotify playlists to CSV. Spot2YTMusic accepts its `Track Name`, `Artist Name(s)`, and `Track Duration (ms)` columns. A duration helps the matcher distinguish recordings.
+The file needs a song title and artist column. [Exportify](https://exportify.app/) is one way to export Spotify playlists to CSV. Spot2YTMusic accepts its `Track Name`, `Artist Name(s)`, and `Track Duration (ms)` columns. A duration helps the matcher distinguish recordings.
 
 You can also make a CSV yourself:
 
