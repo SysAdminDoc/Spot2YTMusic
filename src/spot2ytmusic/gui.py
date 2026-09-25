@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QColor, QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -30,6 +31,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QTableView,
     QVBoxLayout,
@@ -50,40 +52,72 @@ AUTH_URL = "https://ytmusicapi.readthedocs.io/en/stable/setup/browser.html"
 LOGGER = logging.getLogger("spot2ytmusic.gui")
 EMPTY_INDEX = QModelIndex()
 DARK = """
-QWidget { background: #1e1e2e; color: #cdd6f4; font: 10pt 'Segoe UI'; }
-QFrame#card { background: #252538; border: 1px solid #45475a; border-radius: 10px; }
-QLabel#title { font-size: 22pt; font-weight: 700; color: #f5c2e7; }
-QLabel#muted { color: #a6adc8; }
-QPushButton { background: #45475a; border: 0; border-radius: 7px; padding: 8px 12px; }
-QPushButton:hover { background: #585b70; }
-QPushButton:pressed { background: #6c7086; }
-QPushButton:disabled { color: #6c7086; background: #313244; }
-QPushButton#primary { background: #b4befe; color: #11111b; font-weight: 700; }
-QPushButton#primary:hover { background: #cba6f7; }
-QPushButton#primary:disabled { background: #45475a; color: #9399b2; }
-QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background: #181825; border: 1px solid #45475a; border-radius: 6px; padding: 5px; selection-background-color: #585b70; }
-QTableView { alternate-background-color: #252538; }
-QHeaderView::section { background: #313244; color: #cdd6f4; padding: 6px; border: 0; }
-QProgressBar { background: #313244; border: 0; border-radius: 5px; text-align: center; }
-QProgressBar::chunk { background: #a6e3a1; border-radius: 5px; }
-QStatusBar { color: #a6adc8; }
+QWidget { background-color: #0d1422; color: #dce6f5; font: 10pt 'Segoe UI'; }
+QFrame#panel { background-color: #151f32; border: 1px solid #293750; border-radius: 10px; }
+QFrame#soft { background-color: #1b2940; border: 1px solid #34445d; border-radius: 8px; }
+QFrame#separator { background-color: #2b3952; border: 0; max-height: 1px; }
+QLabel, QCheckBox { background-color: transparent; }
+QLabel#brand { font-size: 24pt; font-weight: 700; color: #d4b8ff; }
+QLabel#section { font-size: 11pt; font-weight: 700; color: #c7d5ff; }
+QLabel#detailTitle { font-size: 18pt; font-weight: 700; color: #f2f5ff; }
+QLabel#badge { background-color: #d5dcff; color: #122039; border-radius: 8px; font-weight: 700; }
+QLabel#muted, QLabel#helper { color: #a6b7ce; }
+QLabel#score { background-color: #255a48; color: #7af0b5; border-radius: 6px; padding: 5px 8px; font-weight: 700; }
+QPushButton { background-color: #2b3850; border: 1px solid #35435d; border-radius: 6px; padding: 6px 11px; min-height: 26px; }
+QPushButton:hover { background-color: #394b69; }
+QPushButton:pressed { background-color: #425b81; }
+QPushButton:disabled { background-color: #253147; color: #7b8ba5; border-color: #2d3a51; }
+QPushButton#primary { background-color: #2774ee; color: #ffffff; border-color: #3681f4; font-weight: 700; }
+QPushButton#primary:hover { background-color: #438bff; }
+QPushButton#primary:disabled { background-color: #263954; color: #8294ad; border-color: #35445c; }
+QPushButton#quiet { background: transparent; border-color: #35435d; color: #b9c9e1; }
+QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background-color: #101a2b; color: #e1eafa; border: 1px solid #35435d; border-radius: 6px; padding: 5px; selection-background-color: #245eaf; }
+QListWidget::item { min-height: 28px; padding: 3px 5px; }
+QListWidget::item:selected { background-color: #234a82; }
+QListView::indicator, QCheckBox::indicator { width: 16px; height: 16px; }
+QListView::indicator:unchecked, QCheckBox::indicator:unchecked { background-color: #101a2b; border: 1px solid #8293ad; border-radius: 4px; }
+QListView::indicator:checked, QCheckBox::indicator:checked { background-color: #2b7af0; border: 1px solid #6ba7ff; border-radius: 4px; }
+QTableView { alternate-background-color: #172238; gridline-color: #2a3952; }
+QTableView::item:selected { background-color: #245eaf; color: #ffffff; }
+QHeaderView::section { background-color: #25334a; color: #d4dff1; padding: 8px; border: 0; border-right: 1px solid #34445d; }
+QProgressBar { background-color: #2b3952; border: 0; border-radius: 5px; text-align: center; }
+QProgressBar::chunk { background-color: #46cc8e; border-radius: 5px; }
+QStatusBar { color: #9eafc8; }
+QSplitter::handle { background-color: #0d1422; }
+QScrollArea { background-color: transparent; border: 0; }
 """
 LIGHT = """
-QWidget { background: #eff1f5; color: #4c4f69; font: 10pt 'Segoe UI'; }
-QFrame#card { background: #ffffff; border: 1px solid #ccd0da; border-radius: 10px; }
-QLabel#title { font-size: 22pt; font-weight: 700; color: #8839ef; }
-QLabel#muted { color: #6c6f85; }
-QPushButton { background: #ccd0da; border: 0; border-radius: 7px; padding: 8px 12px; }
-QPushButton:hover { background: #bcc0cc; }
-QPushButton:disabled { color: #9ca0b0; background: #dce0e8; }
-QPushButton#primary { background: #8839ef; color: white; font-weight: 700; }
-QPushButton#primary:hover { background: #7287fd; }
-QPushButton#primary:disabled { background: #ccd0da; color: #9ca0b0; }
-QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background: #ffffff; border: 1px solid #ccd0da; border-radius: 6px; padding: 5px; selection-background-color: #acb0be; }
-QTableView { alternate-background-color: #e6e9ef; }
-QHeaderView::section { background: #dce0e8; padding: 6px; border: 0; }
-QProgressBar { background: #ccd0da; border: 0; border-radius: 5px; text-align: center; }
-QProgressBar::chunk { background: #40a02b; border-radius: 5px; }
+QWidget { background-color: #eef2fa; color: #27344b; font: 10pt 'Segoe UI'; }
+QFrame#panel { background-color: #ffffff; border: 1px solid #cad5e6; border-radius: 10px; }
+QFrame#soft { background-color: #f3f6fb; border: 1px solid #d1daea; border-radius: 8px; }
+QFrame#separator { background-color: #d1daea; border: 0; max-height: 1px; }
+QLabel, QCheckBox { background-color: transparent; }
+QLabel#brand { font-size: 24pt; font-weight: 700; color: #6841b7; }
+QLabel#section { font-size: 11pt; font-weight: 700; color: #33456c; }
+QLabel#detailTitle { font-size: 18pt; font-weight: 700; color: #233049; }
+QLabel#badge { background-color: #dce3ff; color: #264079; border-radius: 8px; font-weight: 700; }
+QLabel#muted, QLabel#helper { color: #62738d; }
+QLabel#score { background-color: #d5f4e2; color: #1d7449; border-radius: 6px; padding: 5px 8px; font-weight: 700; }
+QPushButton { background-color: #e1e8f3; border: 1px solid #cbd6e6; border-radius: 6px; padding: 6px 11px; min-height: 26px; }
+QPushButton:hover { background-color: #d3deee; }
+QPushButton:disabled { background-color: #e9edf4; color: #98a5b8; border-color: #d9e1ed; }
+QPushButton#primary { background-color: #246fdf; color: #ffffff; border-color: #246fdf; font-weight: 700; }
+QPushButton#primary:hover { background-color: #4084ef; }
+QPushButton#primary:disabled { background-color: #d9e3f0; color: #9aabc2; border-color: #ccd8e9; }
+QPushButton#quiet { background: transparent; border-color: #cad5e6; color: #51637d; }
+QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background-color: #ffffff; color: #27344b; border: 1px solid #c8d3e5; border-radius: 6px; padding: 5px; selection-background-color: #b4d1ff; }
+QListWidget::item { min-height: 28px; padding: 3px 5px; }
+QListWidget::item:selected { background-color: #d2e3ff; }
+QListView::indicator, QCheckBox::indicator { width: 16px; height: 16px; }
+QListView::indicator:unchecked, QCheckBox::indicator:unchecked { background-color: #ffffff; border: 1px solid #8293ad; border-radius: 4px; }
+QListView::indicator:checked, QCheckBox::indicator:checked { background-color: #246fdf; border: 1px solid #246fdf; border-radius: 4px; }
+QTableView { alternate-background-color: #f1f5fb; gridline-color: #d6dfed; }
+QTableView::item:selected { background-color: #b4d1ff; color: #20334f; }
+QHeaderView::section { background-color: #e4ebf5; color: #354765; padding: 8px; border: 0; border-right: 1px solid #d1daea; }
+QProgressBar { background-color: #dbe4f0; border: 0; border-radius: 5px; text-align: center; }
+QProgressBar::chunk { background-color: #31ad72; border-radius: 5px; }
+QSplitter::handle { background-color: #eef2fa; }
+QScrollArea { background-color: transparent; border: 0; }
 """
 
 
@@ -204,13 +238,14 @@ class Job(QThread):
 
 
 class SongTable(QAbstractTableModel):
-    COLUMNS = ("#", "Song", "Artist", "Match", "Decision")
+    COLUMNS = ("#", "Song", "Artist", "Match", "Status")
 
     def __init__(self) -> None:
         super().__init__()
         self.store: ReviewStore | None = None
         self.playlist = ""
         self.needs_review = False
+        self.dark = True
         self.entries: list[dict] = []
 
     def refresh(self) -> None:
@@ -238,18 +273,38 @@ class SongTable(QAbstractTableModel):
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.DisplayRole):
-        if not index.isValid() or role not in (Qt.DisplayRole, Qt.ToolTipRole):
+        if not index.isValid():
             return None
         entry = self.entries[index.row()]
         track = entry["track"]
         row = self.store.by_key[track["key"]]
         match = entry["candidates"][0]["score"] if entry["candidates"] else None
+        decision = (row["Decision"] or "").strip().casefold()
+        status = "Ready" if decision == "use" else "Skipped" if decision == "skip" else "Review"
+        if role == Qt.ForegroundRole:
+            if index.column() == 3 and match is not None:
+                return QColor(
+                    ("#66dfa5" if match >= 0.9 else "#ffd36e")
+                    if self.dark
+                    else ("#137346" if match >= 0.9 else "#895b00")
+                )
+            if index.column() == 4:
+                colors = (
+                    {"Ready": "#66dfa5", "Review": "#ffd36e", "Skipped": "#9eafc8"}
+                    if self.dark
+                    else {"Ready": "#137346", "Review": "#895b00", "Skipped": "#62738d"}
+                )
+                return QColor(colors[status])
+        if role == Qt.TextAlignmentRole and index.column() in (0, 3):
+            return Qt.AlignCenter
+        if role not in (Qt.DisplayRole, Qt.ToolTipRole):
+            return None
         values = (
             track["position"],
             track["title"],
             track["artist"],
             f"{match:.0%}" if match is not None else "No match",
-            row["Decision"] or "Needs review",
+            status,
         )
         return str(values[index.column()])
 
@@ -258,7 +313,12 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(f"Spot2YTMusic v{__version__}")
-        self.resize(1180, 780)
+        self.setMinimumSize(1080, 700)
+        available = QApplication.primaryScreen().availableGeometry()
+        self.resize(
+            max(1080, min(1440, available.width() - 32)),
+            max(700, min(900, available.height() - 32)),
+        )
         self.tracks = []
         self.sources: list[Path] = []
         self.store: ReviewStore | None = None
@@ -275,63 +335,132 @@ class MainWindow(QMainWindow):
         button.clicked.connect(handler)
         return button
 
+    def _section_heading(self, layout: QVBoxLayout, number: str | None, title: str, helper: str) -> None:
+        heading = QHBoxLayout()
+        heading.setSpacing(10)
+        if number:
+            badge = QLabel(number)
+            badge.setObjectName("badge")
+            badge.setAlignment(Qt.AlignCenter)
+            badge.setFixedSize(29, 29)
+            heading.addWidget(badge)
+        label = QLabel(title)
+        label.setObjectName("section")
+        heading.addWidget(label)
+        heading.addStretch()
+        layout.addLayout(heading)
+        explanation = QLabel(helper)
+        explanation.setObjectName("helper")
+        explanation.setWordWrap(True)
+        layout.addWidget(explanation)
+
     def _build(self) -> None:
         content = QWidget()
         self.setCentralWidget(content)
         page = QVBoxLayout(content)
-        page.setContentsMargins(20, 16, 20, 16)
-        page.setSpacing(12)
+        page.setContentsMargins(12, 10, 12, 7)
+        page.setSpacing(10)
 
         header = QHBoxLayout()
+        header.setSpacing(18)
         title = QLabel("Spot2YTMusic")
-        title.setObjectName("title")
+        title.setObjectName("brand")
         header.addWidget(title)
+        subtitle = QLabel("Move your playlists with confidence")
+        subtitle.setObjectName("muted")
+        header.addWidget(subtitle)
         header.addStretch()
+        export_button = self._button("Open Exportify", lambda: self._open_url(EXPORT_URL))
+        export_button.setObjectName("quiet")
+        header.addWidget(export_button)
+        self.open_plan_button = self._button("Open saved plan", self._choose_plan)
+        self.open_plan_button.setObjectName("quiet")
+        header.addWidget(self.open_plan_button)
         self.theme_button = self._button("Light theme", self._toggle_theme)
+        self.theme_button.setObjectName("quiet")
         header.addWidget(self.theme_button)
         page.addLayout(header)
-        intro = QLabel("Export your Spotify playlists, check the matches, then send them to YouTube Music.")
-        intro.setObjectName("muted")
-        page.addWidget(intro)
 
-        actions = QFrame()
-        actions.setObjectName("card")
-        action_layout = QVBoxLayout(actions)
-        first = QHBoxLayout()
-        first.addWidget(self._button("1  Open Exportify", lambda: self._open_url(EXPORT_URL)))
-        self.import_button = self._button("2  Import CSV or ZIP", self._choose_sources, True)
-        first.addWidget(self.import_button)
+        workspace = QSplitter(Qt.Horizontal)
+        workspace.setChildrenCollapsible(False)
+        workspace.setHandleWidth(8)
+
+        sources = QFrame()
+        sources.setObjectName("panel")
+        sources.setMinimumHeight(548)
+        source_layout = QVBoxLayout(sources)
+        source_layout.setContentsMargins(15, 15, 15, 15)
+        source_layout.setSpacing(9)
+        self._section_heading(
+            source_layout,
+            "1",
+            "IMPORT & SELECT",
+            "Import your Spotify export, then choose which playlists to migrate.",
+        )
+        self.import_button = self._button("Import CSV or ZIP", self._choose_sources, True)
+        self.import_button.setMinimumHeight(42)
+        source_layout.addWidget(self.import_button)
+        source_strip = QFrame()
+        source_strip.setObjectName("soft")
+        source_strip_layout = QHBoxLayout(source_strip)
+        source_strip_layout.setContentsMargins(10, 7, 10, 7)
         self.sources_label = QLabel("No files selected")
         self.sources_label.setObjectName("muted")
-        first.addWidget(self.sources_label, 1)
-        action_layout.addLayout(first)
-        selection = QHBoxLayout()
-        selection.addWidget(QLabel("Playlists"))
+        self.sources_label.setWordWrap(True)
+        source_strip_layout.addWidget(self.sources_label)
+        source_layout.addWidget(source_strip)
+        self.playlists_label = QLabel("Playlists (0)")
+        source_layout.addWidget(self.playlists_label)
         self.playlist_list = QListWidget()
-        self.playlist_list.setFixedHeight(112)
+        self.playlist_list.setMinimumHeight(122)
+        self.playlist_list.setMaximumHeight(150)
         self.playlist_list.itemChanged.connect(lambda _item: self._update_buttons())
-        selection.addWidget(self.playlist_list, 1)
-        selection_buttons = QVBoxLayout()
+        source_layout.addWidget(self.playlist_list, 1)
+        selection_buttons = QHBoxLayout()
         self.select_all_button = self._button("Select all", lambda: self._select_all_playlists(True))
         self.select_none_button = self._button("Select none", lambda: self._select_all_playlists(False))
         selection_buttons.addWidget(self.select_all_button)
         selection_buttons.addWidget(self.select_none_button)
-        selection_buttons.addStretch()
-        selection.addLayout(selection_buttons)
-        action_layout.addLayout(selection)
-        second = QHBoxLayout()
-        second.addWidget(QLabel("Save plans in"))
+        source_layout.addLayout(selection_buttons)
+        divider = QFrame()
+        divider.setObjectName("separator")
+        divider.setFixedHeight(1)
+        source_layout.addWidget(divider)
+        source_layout.addWidget(QLabel("Save plan to"))
+        output_row = QHBoxLayout()
         self.output_edit = QLineEdit(str(default_output()))
-        second.addWidget(self.output_edit, 1)
-        second.addWidget(self._button("Browse", self._choose_output))
-        self.scan_button = self._button("3  Scan selected", self._start_scan, True)
-        second.addWidget(self.scan_button)
-        self.open_plan_button = self._button("Open saved plan", self._choose_plan)
-        second.addWidget(self.open_plan_button)
-        action_layout.addLayout(second)
-        page.addWidget(actions)
+        output_row.addWidget(self.output_edit, 1)
+        output_row.addWidget(self._button("Browse", self._choose_output))
+        source_layout.addLayout(output_row)
+        scan_row = QHBoxLayout()
+        self.scan_button = self._button("Scan selected", self._start_scan, True)
+        self.scan_button.setMinimumHeight(39)
+        scan_row.addWidget(self.scan_button, 2)
+        self.stop_scan_button = self._button("Stop scan", self._stop)
+        self.stop_scan_button.setMinimumHeight(39)
+        scan_row.addWidget(self.stop_scan_button, 1)
+        source_layout.addLayout(scan_row)
+        source_scroll = QScrollArea()
+        source_scroll.setWidgetResizable(True)
+        source_scroll.setMinimumWidth(245)
+        source_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        source_scroll.setWidget(sources)
+        workspace.addWidget(source_scroll)
 
+        review = QFrame()
+        review.setObjectName("panel")
+        review.setMinimumWidth(470)
+        review_layout = QVBoxLayout(review)
+        review_layout.setContentsMargins(13, 15, 13, 13)
+        review_layout.setSpacing(9)
+        self._section_heading(
+            review_layout,
+            "2",
+            "REVIEW MATCHES",
+            "Check each match. Choose a playlist or show only songs that need a decision.",
+        )
         review_bar = QHBoxLayout()
+        review_bar.setSpacing(9)
         review_bar.addWidget(QLabel("Playlist"))
         self.playlist_combo = QComboBox()
         self.playlist_combo.currentTextChanged.connect(self._switch_playlist)
@@ -339,36 +468,91 @@ class MainWindow(QMainWindow):
         self.only_review = QCheckBox("Needs review only")
         self.only_review.toggled.connect(self._filter_changed)
         review_bar.addWidget(self.only_review)
-        self.count_label = QLabel("Import files to begin")
-        review_bar.addWidget(self.count_label)
-        page.addLayout(review_bar)
-
-        splitter = QSplitter(Qt.Horizontal)
+        review_layout.addLayout(review_bar)
         self.model = SongTable()
         self.table = QTableView()
         self.table.setModel(self.model)
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setSelectionMode(QTableView.SingleSelection)
         self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
-        self.table.setColumnWidth(0, 52)
-        self.table.setColumnWidth(1, 310)
-        self.table.setColumnWidth(2, 190)
-        self.table.setColumnWidth(3, 85)
-        self.table.setColumnWidth(4, 120)
+        self.table.verticalHeader().setDefaultSectionSize(40)
+        self.table.horizontalHeader().setMinimumHeight(41)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.table.setColumnWidth(0, 44)
+        self.table.setColumnWidth(2, 138)
+        self.table.setColumnWidth(3, 84)
+        self.table.setColumnWidth(4, 108)
         self.table.selectionModel().currentRowChanged.connect(self._show_song)
-        splitter.addWidget(self.table)
+        review_layout.addWidget(self.table, 1)
+        workspace.addWidget(review)
 
         detail = QFrame()
-        detail.setObjectName("card")
+        detail.setObjectName("panel")
+        detail.setMinimumHeight(455)
         detail_layout = QVBoxLayout(detail)
-        self.song_label = QLabel("Choose a song to review")
+        detail_layout.setContentsMargins(14, 15, 14, 15)
+        detail_layout.setSpacing(10)
+        self._section_heading(
+            detail_layout,
+            None,
+            "NOW REVIEWING",
+            "Choose the best recording for this track.",
+        )
+        song_card = QFrame()
+        song_card.setObjectName("soft")
+        song_card_layout = QHBoxLayout(song_card)
+        song_card_layout.setContentsMargins(10, 10, 10, 10)
+        song_card_layout.setSpacing(12)
+        self.artwork_label = QLabel()
+        self.artwork_label.setFixedSize(102, 102)
+        artwork = QPixmap(str(Path(__file__).resolve().parent / "assets" / "track-placeholder.png"))
+        if artwork.isNull():
+            raise FileNotFoundError("Track artwork is missing from the app package")
+        self.artwork_label.setPixmap(artwork.scaled(102, 102, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        song_card_layout.addWidget(self.artwork_label)
+        song_info = QVBoxLayout()
+        self.song_label = QLabel("Choose a song")
+        self.song_label.setObjectName("detailTitle")
         self.song_label.setWordWrap(True)
-        detail_layout.addWidget(self.song_label)
+        song_info.addWidget(self.song_label)
+        self.artist_label = QLabel("")
+        song_info.addWidget(self.artist_label)
+        self.origin_label = QLabel("")
+        self.origin_label.setObjectName("muted")
+        song_info.addWidget(self.origin_label)
+        song_info.addStretch()
+        song_card_layout.addLayout(song_info, 1)
+        detail_layout.addWidget(song_card)
+
+        candidate_card = QFrame()
+        candidate_card.setObjectName("soft")
+        candidate_layout = QVBoxLayout(candidate_card)
+        candidate_layout.setContentsMargins(10, 10, 10, 10)
+        candidate_head = QHBoxLayout()
+        candidate_head.addWidget(QLabel("Suggested recording"))
+        candidate_head.addStretch()
+        self.candidate_score = QLabel("No match")
+        self.candidate_score.setObjectName("score")
+        candidate_head.addWidget(self.candidate_score)
+        candidate_layout.addLayout(candidate_head)
         self.candidates = QComboBox()
         self.candidates.currentIndexChanged.connect(self._candidate_changed)
-        detail_layout.addWidget(QLabel("Suggested recordings"))
-        detail_layout.addWidget(self.candidates)
+        candidate_body = QHBoxLayout()
+        candidate_artwork = QLabel()
+        candidate_artwork.setFixedSize(52, 52)
+        candidate_artwork.setPixmap(artwork.scaled(52, 52, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        candidate_body.addWidget(candidate_artwork)
+        candidate_info = QVBoxLayout()
+        candidate_info.addWidget(self.candidates)
+        self.candidate_detail = QLabel("Choose a song to see suggestions")
+        self.candidate_detail.setObjectName("muted")
+        self.candidate_detail.setWordWrap(True)
+        candidate_info.addWidget(self.candidate_detail)
+        candidate_body.addLayout(candidate_info, 1)
+        candidate_layout.addLayout(candidate_body)
+        detail_layout.addWidget(candidate_card)
         detail_layout.addWidget(QLabel("YouTube Music link or 11-character video ID"))
         self.video_edit = QLineEdit()
         self.video_edit.setPlaceholderText("Paste a YouTube Music song link or video ID")
@@ -384,41 +568,86 @@ class MainWindow(QMainWindow):
         row.addWidget(self.skip_button)
         detail_layout.addLayout(row)
         detail_layout.addStretch()
-        splitter.addWidget(detail)
-        splitter.setSizes([760, 380])
-        page.addWidget(splitter, 1)
+        detail_scroll = QScrollArea()
+        detail_scroll.setWidgetResizable(True)
+        detail_scroll.setMinimumWidth(300)
+        detail_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        detail_scroll.setWidget(detail)
+        workspace.addWidget(detail_scroll)
+        workspace.setSizes([325, 715, 350])
+        page.addWidget(workspace, 1)
 
         transfer = QFrame()
-        transfer.setObjectName("card")
-        transfer_layout = QHBoxLayout(transfer)
-        transfer_layout.addWidget(self._button("Auth setup guide", lambda: self._open_url(AUTH_URL)))
-        transfer_layout.addWidget(self._button("Paste browser headers", self._paste_auth))
-        transfer_layout.addWidget(QLabel("YouTube Music auth"))
+        transfer.setObjectName("panel")
+        transfer_layout = QVBoxLayout(transfer)
+        transfer_layout.setContentsMargins(15, 8, 15, 8)
+        transfer_layout.setSpacing(5)
+        transfer_heading = QHBoxLayout()
+        transfer_badge = QLabel("3")
+        transfer_badge.setObjectName("badge")
+        transfer_badge.setAlignment(Qt.AlignCenter)
+        transfer_badge.setFixedSize(29, 29)
+        transfer_heading.addWidget(transfer_badge)
+        transfer_title = QLabel("SEND TO YOUTUBE MUSIC")
+        transfer_title.setObjectName("section")
+        transfer_heading.addWidget(transfer_title)
+        transfer_heading.addWidget(QLabel("Authenticate, then transfer the playlists you checked."))
+        transfer_heading.addStretch()
+        guide_button = self._button("Auth setup guide", lambda: self._open_url(AUTH_URL))
+        guide_button.setObjectName("quiet")
+        transfer_heading.addWidget(guide_button)
+        paste_button = self._button("Paste browser headers", self._paste_auth)
+        paste_button.setObjectName("quiet")
+        transfer_heading.addWidget(paste_button)
+        transfer_layout.addLayout(transfer_heading)
+        auth_row = QHBoxLayout()
+        auth_row.addWidget(QLabel("YouTube Music auth file"))
         self.auth_edit = QLineEdit()
         self.auth_edit.setPlaceholderText("Choose your local browser.json")
-        transfer_layout.addWidget(self.auth_edit, 1)
-        transfer_layout.addWidget(self._button("Browse", self._choose_auth))
-        self.transfer_button = self._button("4  Transfer selected", self._start_transfer, True)
-        transfer_layout.addWidget(self.transfer_button)
-        page.addWidget(transfer)
+        auth_row.addWidget(self.auth_edit, 1)
+        auth_row.addWidget(self._button("Browse", self._choose_auth))
+        self.transfer_button = self._button("Transfer selected", self._start_transfer, True)
+        self.transfer_button.setMinimumWidth(210)
+        auth_row.addWidget(self.transfer_button)
+        transfer_layout.addLayout(auth_row)
+        self.count_label = QLabel("Import files to begin")
+        self.count_label.setObjectName("muted")
+        transfer_layout.addWidget(self.count_label)
 
         progress_row = QHBoxLayout()
+        self.progress_label = QLabel("Ready to scan or transfer")
+        progress_row.addWidget(self.progress_label)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
+        self.progress.setTextVisible(False)
+        self.progress.setFixedHeight(12)
         progress_row.addWidget(self.progress, 1)
+        self.progress_count_label = QLabel("")
+        self.progress_count_label.setObjectName("muted")
+        progress_row.addWidget(self.progress_count_label)
         self.stop_button = self._button("Stop", self._stop)
         progress_row.addWidget(self.stop_button)
-        page.addLayout(progress_row)
+        transfer_layout.addLayout(progress_row)
+        transfer_layout.addWidget(QLabel("Activity log"))
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(500)
-        self.log.setFixedHeight(95)
-        page.addWidget(self.log)
+        self.log.setFixedHeight(42)
+        transfer_layout.addWidget(self.log)
+        page.addWidget(transfer)
         self.statusBar().showMessage("Ready")
+        self.statusBar().setFixedHeight(18)
 
     def _theme(self) -> None:
         self.setStyleSheet(DARK if self.dark else LIGHT)
         self.theme_button.setText("Light theme" if self.dark else "Dark theme")
+        self.model.dark = self.dark
+        if self.model.entries:
+            self.model.dataChanged.emit(
+                self.model.index(0, 0),
+                self.model.index(len(self.model.entries) - 1, len(self.model.COLUMNS) - 1),
+                [Qt.ForegroundRole],
+            )
 
     def _toggle_theme(self) -> None:
         self.dark = not self.dark
@@ -476,6 +705,7 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.Checked if selected is None or name in selected else Qt.Unchecked)
             self.playlist_list.addItem(item)
         self.playlist_list.blockSignals(False)
+        self.playlists_label.setText(f"Playlists ({self.playlist_list.count()})")
         self._update_buttons()
 
     def _select_all_playlists(self, checked: bool) -> None:
@@ -576,28 +806,46 @@ class MainWindow(QMainWindow):
         self.candidates.clear()
         if entry:
             track = entry["track"]
-            self.song_label.setText(
-                f"{track['position']}. {track['title']}\n{track['artist']}\n{track['album']}\n{entry['note']}"
-            )
+            self.song_label.setText(track["title"])
+            self.artist_label.setText(track["artist"] or "Artist unavailable")
+            self.origin_label.setText(f"From: {track['collection']}")
             for item in entry["candidates"]:
                 self.candidates.addItem(
-                    f"{item['title']} | {item['artist']} | {item['score']:.0%} | "
-                    f"{item['duration_seconds'] or '?'}s",
+                    f"{item['title']}  |  {item['artist']}  |  {item['score']:.0%}",
                     item["video_id"],
                 )
             self.video_edit.setText(
                 self.store.by_key[track["key"]]["Chosen video ID"] or entry["selected_video_id"]
             )
+            self._show_candidate_details(0)
         else:
-            self.song_label.setText("Choose a song to review")
+            self.song_label.setText("Choose a song")
+            self.artist_label.clear()
+            self.origin_label.clear()
+            self.candidate_score.setText("No match")
+            self.candidate_detail.setText("Choose a song to see suggestions")
             self.video_edit.clear()
         self.candidates.blockSignals(False)
         self.use_button.setEnabled(bool(entry))
         self.skip_button.setEnabled(bool(entry))
 
+    def _show_candidate_details(self, index: int) -> None:
+        entry = self._current_entry()
+        if not entry or not 0 <= index < len(entry["candidates"]):
+            self.candidate_score.setText("No match")
+            self.candidate_detail.setText("Search YouTube Music for this song")
+            return
+        candidate = entry["candidates"][index]
+        self.candidate_score.setText(f"{candidate['score']:.0%} match")
+        album = candidate["album"] or candidate["result_type"].capitalize()
+        duration = candidate["duration_seconds"]
+        timing = f"  |  {duration // 60}:{duration % 60:02d}" if duration else ""
+        self.candidate_detail.setText(f"{candidate['artist']}  |  {album}{timing}")
+
     def _candidate_changed(self, index: int) -> None:
         if index >= 0:
             self.video_edit.setText(str(self.candidates.itemData(index)))
+        self._show_candidate_details(index)
 
     def _open_search(self) -> None:
         entry = self._current_entry()
@@ -654,6 +902,9 @@ class MainWindow(QMainWindow):
         )
         self.transfer_button.setEnabled(can_transfer and not busy)
         self.stop_button.setEnabled(busy and not self.job.stop_event.is_set())
+        self.stop_scan_button.setEnabled(
+            busy and self.job.kind == "scan" and not self.job.stop_event.is_set()
+        )
         if self.store:
             if not selected:
                 self.count_label.setText("Choose playlists to transfer")
@@ -710,6 +961,10 @@ class MainWindow(QMainWindow):
         self.progress.setRange(0, 0 if job.kind == "import" else 100)
         if job.kind != "import":
             self.progress.setValue(0)
+        self.progress_label.setText(
+            {"import": "Importing playlists...", "scan": "Scanning YouTube Music...", "transfer": "Transferring to YouTube Music..."}[job.kind]
+        )
+        self.progress_count_label.clear()
         job.updated.connect(self._progress)
         job.note.connect(self._log)
         job.completed.connect(self._completed)
@@ -720,6 +975,7 @@ class MainWindow(QMainWindow):
 
     def _progress(self, done: int, total: int, message: str) -> None:
         self.progress.setValue(round(100 * done / total) if total else 100)
+        self.progress_count_label.setText(f"{done} / {total} tracks")
         self.statusBar().showMessage(message)
         if done == 1 or done == total or done % 25 == 0:
             self.log.appendPlainText(message)
@@ -733,8 +989,9 @@ class MainWindow(QMainWindow):
             self.playlist_combo.clear()
             self.model.refresh()
             self._populate_playlists(Counter(track.collection for track in self.tracks))
+            source_name = self.sources[0].name if len(self.sources) == 1 else f"{len(self.sources)} files"
             self.sources_label.setText(
-                f"{len(self.sources)} file(s), {len(self.tracks)} songs, "
+                f"{source_name} · {len(self.tracks)} songs · "
                 f"{len({track.collection for track in self.tracks})} playlists"
             )
             self._log("Imported " + self.sources_label.text())
@@ -745,17 +1002,21 @@ class MainWindow(QMainWindow):
             self._log(f"Transfer finished: {len(result)} playlists")
         self.progress.setRange(0, 100)
         self.progress.setValue(100)
+        self.progress_label.setText("Finished")
 
     def _failed(self, message: str) -> None:
         self.progress.setRange(0, 100)
         if "stopped" in message.casefold():
+            self.progress_label.setText("Stopped")
             self._log(message)
         else:
+            self.progress_label.setText("Needs attention")
             self._error(message)
 
     def _job_finished(self) -> None:
         self.job = None
         self.stop_button.setText("Stop")
+        self.stop_scan_button.setText("Stop scan")
         self._update_buttons()
 
     def _stop(self) -> None:
@@ -763,6 +1024,8 @@ class MainWindow(QMainWindow):
             self.job.stop_event.set()
             self.stop_button.setText("Stopping...")
             self.stop_button.setEnabled(False)
+            self.stop_scan_button.setText("Stopping...")
+            self.stop_scan_button.setEnabled(False)
             messages = {
                 "scan": "Stopping scan after the current YouTube Music request...",
                 "transfer": "Stopping transfer after the current verified batch...",

@@ -2,6 +2,7 @@
 
 import ctypes
 import os
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -75,16 +76,29 @@ def main() -> None:
         save_plan(plan_path, plan)
         save_review(plan_path.with_suffix(".review.csv"), plan)
         window = MainWindow()
+        if "--compact" in sys.argv:
+            window.resize(1080, 700)
+        else:
+            window.resize(1440, 900)
         window.output_edit.setText("Documents\\Spot2YTMusic")
         window.tracks = [entry.track for entry in samples]
-        window.sources_label.setText("Export_All.zip, 5 songs, 2 playlists")
+        window.sources_label.setText("Export_All.zip · 5 songs · 2 playlists")
         window._load_plan(plan_path, from_scan=True)
         window.playlist_list.item(1).setCheckState(Qt.Unchecked)
         window.table.selectRow(1)
         window.auth_edit.setPlaceholderText("Choose your local browser.json")
+        if "--light" in sys.argv:
+            window.theme_button.click()
         window.show()
         app.processEvents()
-        target = Path(__file__).resolve().parents[1] / "docs" / "screenshots" / "desktop.png"
+        filename = (
+            "desktop-compact.png"
+            if "--compact" in sys.argv
+            else "desktop-light.png"
+            if "--light" in sys.argv
+            else "desktop.png"
+        )
+        target = Path(__file__).resolve().parents[1] / "docs" / "screenshots" / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         if not window.grab().save(str(target)):
             raise RuntimeError("Screenshot capture failed")

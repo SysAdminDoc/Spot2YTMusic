@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.3
+
+- Rebuild the desktop layout around playlist selection, match review, recording details, and transfer status.
+- Refresh the dark theme and improve the light theme, including clearer selection and match states.
+- Add a generic track artwork tile and keep the review controls visible beside the track list.
+
 ## v0.1.2
 
 - Choose individual playlists from an imported CSV or Exportify ZIP before scanning.

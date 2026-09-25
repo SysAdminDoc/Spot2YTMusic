@@ -1,6 +1,6 @@
 ![Spot2YTMusic](docs/hero.svg)
 
-[![Version](https://img.shields.io/badge/version-0.1.2-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.1.2) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20GUI-285f93)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest)
+[![Version](https://img.shields.io/badge/version-0.1.3-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.1.3) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20GUI-285f93)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest)
 
 **Take your Spotify playlists to YouTube Music, with the right recordings in the right order.** Spot2YTMusic opens your playlist exports, searches YouTube Music, and lets you check uncertain matches before anything is added. It handles several playlists at once and can pick up a stopped transfer after checking what made it across.
 
@@ -8,11 +8,13 @@
 
 ![The Spot2YTMusic desktop app showing a playlist and candidate recordings](docs/screenshots/desktop.png)
 
+Playlist choices sit on the left, match review stays in the middle, and recording details are on the right. Transfer controls and the activity log remain visible below. There's also a [light theme](docs/screenshots/desktop-light.png).
+
 ## Move your playlists
 
 1. Open [Exportify](https://exportify.app/) from the app and sign in to Spotify. Download individual playlist CSVs or use **Export All** for a ZIP.
 2. Import the files. You can choose several CSVs, a ZIP, or both. Check the playlists you want, pick where to save the transfer plan, then click **Scan selected**. Use **Stop scan** if you need to pause. Searches already completed stay in the local cache for the next run.
-3. Check songs marked **Needs review**. Listen to a suggested recording or search YouTube Music yourself. Choose **Use recording** or **Skip song**. Each choice is saved as you make it.
+3. Check songs marked **Review**. Listen to a suggested recording or search YouTube Music yourself. Choose **Use recording** or **Skip song**. Each choice is saved as you make it.
 4. Set up YouTube Music authentication using the guide in the app. Paste the browser request headers into the app to create a local auth file, or browse for one you already have. Check the playlists you want from the open plan, then click **Transfer selected**.
 
 Strong matches are selected for you. The app waits for your decision on uncertain songs in the playlists you're transferring. Each scan saves its own plan, so you can scan another group later and reopen an earlier plan. It creates private playlists and verifies the song order after every batch. If a transfer stops, open the saved plan and run **Transfer selected** again. Your review choices and completed batches are kept.

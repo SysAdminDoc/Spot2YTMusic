@@ -16,7 +16,8 @@ foreach ($target in @($dist, $build)) {
     if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
 }
 $iconIco = Join-Path $root 'assets\app-icon.ico'
-& $python -m PyInstaller --clean --noconfirm --onefile --windowed --name Spot2YTMusic --icon $iconIco --collect-data ytmusicapi --runtime-hook (Join-Path $root 'scripts\runtime_hook_mp.py') (Join-Path $root 'scripts\gui_launcher.py')
+$artwork = Join-Path $root 'src\spot2ytmusic\assets\track-placeholder.png'
+& $python -m PyInstaller --clean --noconfirm --onefile --windowed --name Spot2YTMusic --icon $iconIco --add-data "$artwork;spot2ytmusic/assets" --collect-data ytmusicapi --runtime-hook (Join-Path $root 'scripts\runtime_hook_mp.py') (Join-Path $root 'scripts\gui_launcher.py')
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
 $env:QT_QPA_PLATFORM = 'offscreen'
 $smoke = Start-Process -FilePath (Join-Path $dist 'Spot2YTMusic.exe') -ArgumentList '--smoke-test' -PassThru -WindowStyle Hidden

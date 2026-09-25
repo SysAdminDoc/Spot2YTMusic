@@ -1,3 +1,3 @@
 """Spot2YTMusic: reviewed Spotify CSV to YouTube Music migration."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

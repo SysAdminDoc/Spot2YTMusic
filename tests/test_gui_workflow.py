@@ -184,9 +184,9 @@ def test_stop_scan_prevents_a_second_request(tmp_path: Path, monkeypatch):
         app.processEvents()
         time.sleep(0.01)
     assert fake.started.is_set()
-    assert window.stop_button.isEnabled()
-    window.stop_button.click()
-    assert window.stop_button.text() == "Stopping..."
+    assert window.stop_scan_button.isEnabled()
+    window.stop_scan_button.click()
+    assert window.stop_scan_button.text() == "Stopping..."
     fake.release.set()
     wait_for_job(app, window)
     assert fake.calls == 1
