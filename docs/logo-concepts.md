@@ -1,0 +1,9 @@
+# Logo concepts
+
+These prompts are reserved for later artwork. Any exported PNG must use RGBA with alpha zero outside the glyph and stay readable on light and dark backgrounds.
+
+1. Minimal icon: Playlist Bridge, a careful music playlist migrator. Three audio bars connected to an arrow, flat single-color geometry, high contrast, SVG-friendly, no text. Transparent background, PNG with alpha channel (RGBA), no canvas fill.
+2. App icon: Playlist Bridge, a careful music playlist migrator. Rounded square outline holding a music note that crosses a small bridge, clean geometry with restrained depth, readable at 32 pixels, no text. Transparent background, PNG with alpha channel (RGBA), no canvas fill.
+3. Wordmark: Playlist Bridge, a careful music playlist migrator. Clear lettering with a simple bridge and sound-wave mark, opaque glyphs, high contrast on light and dark surfaces. Transparent background, PNG with alpha channel (RGBA), no canvas fill.
+4. Emblem: Playlist Bridge, a careful music playlist migrator. Compact badge with two linked music notes and a short bridge span, high contrast, simple shapes, no text. Transparent background, PNG with alpha channel (RGBA), no canvas fill.
+5. Abstract: Playlist Bridge, a careful music playlist migrator. Two ordered columns of dots joined by a single flowing line, suggesting songs keeping their order, high contrast, SVG-friendly, no text. Transparent background, PNG with alpha channel (RGBA), no canvas fill.
