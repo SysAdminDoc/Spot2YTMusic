@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1
+
+- Include YouTube Music language files in the Windows EXE so scanning starts after an Exportify import.
+- Check the frozen app's YouTube Music client during every Windows build.
+- Label background errors by the step that failed.
+
 ## v0.1.0
 
 - Add a Windows desktop app for export, batch scan, match review, and playlist transfer.

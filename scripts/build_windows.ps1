@@ -16,8 +16,16 @@ foreach ($target in @($dist, $build)) {
     if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
 }
 $iconIco = Join-Path $root 'assets\app-icon.ico'
-& $python -m PyInstaller --clean --noconfirm --onefile --windowed --name Spot2YTMusic --icon $iconIco --runtime-hook (Join-Path $root 'scripts\runtime_hook_mp.py') (Join-Path $root 'scripts\gui_launcher.py')
+& $python -m PyInstaller --clean --noconfirm --onefile --windowed --name Spot2YTMusic --icon $iconIco --collect-data ytmusicapi --runtime-hook (Join-Path $root 'scripts\runtime_hook_mp.py') (Join-Path $root 'scripts\gui_launcher.py')
 if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
+$env:QT_QPA_PLATFORM = 'offscreen'
+$smoke = Start-Process -FilePath (Join-Path $dist 'Spot2YTMusic.exe') -ArgumentList '--smoke-test' -PassThru -WindowStyle Hidden
+if (-not $smoke.WaitForExit(30000)) {
+    & taskkill.exe /T /F /PID $smoke.Id | Out-Null
+    throw 'Frozen app startup check timed out.'
+}
+if ($smoke.ExitCode -ne 0) { throw "Frozen app startup check failed: $($smoke.ExitCode)" }
+Remove-Item Env:QT_QPA_PLATFORM
 & $python -m build
 if ($LASTEXITCODE -ne 0) { throw 'Package build failed.' }
 $version = (& $python -c 'from spot2ytmusic import __version__; print(__version__)').Trim()

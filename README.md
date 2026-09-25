@@ -1,6 +1,6 @@
 ![Spot2YTMusic](docs/hero.svg)
 
-[![Version](https://img.shields.io/badge/version-0.1.0-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.1.0) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20GUI-285f93)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest)
+[![Version](https://img.shields.io/badge/version-0.1.1-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.1.1) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20GUI-285f93)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest)
 
 **Take your Spotify playlists to YouTube Music, with the right recordings in the right order.** Spot2YTMusic opens your playlist exports, searches YouTube Music, and lets you check uncertain matches before anything is added. It handles several playlists at once and can pick up a stopped transfer after checking what made it across.
 

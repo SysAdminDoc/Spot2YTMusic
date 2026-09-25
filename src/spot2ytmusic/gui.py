@@ -190,7 +190,7 @@ class Job(QThread):
             self.failed.emit(str(exc))
         except Exception as exc:
             LOGGER.exception("%s job failed", self.kind)
-            self.failed.emit(str(exc) or type(exc).__name__)
+            self.failed.emit(f"{self.kind.capitalize()} failed: {exc or type(exc).__name__}")
 
 
 class SongTable(QAbstractTableModel):
@@ -690,6 +690,11 @@ def main() -> int:
     if "--smoke-test" in sys.argv:
         from PySide6.QtCore import QTimer
 
+        try:
+            _client()
+        except Exception:
+            LOGGER.exception("Packaged YouTube Music client startup failed")
+            return 1
         QTimer.singleShot(100, app.quit)
     else:
         window.show()
