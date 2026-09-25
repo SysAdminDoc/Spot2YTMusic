@@ -10,7 +10,7 @@
 
 ## Move your playlists
 
-1. Open **Exportify** from the app and sign in to Spotify. Download individual playlist CSVs or use **Export All** for a ZIP.
+1. Open [Exportify](https://exportify.app/) from the app and sign in to Spotify. Download individual playlist CSVs or use **Export All** for a ZIP.
 2. Import the files. You can choose several CSVs, a ZIP, or both. Pick where to save the transfer plan, then click **Scan all**.
 3. Check songs marked **Needs review**. Listen to a suggested recording or search YouTube Music yourself. Choose **Use recording** or **Skip song**. Each choice is saved as you make it.
 4. Set up YouTube Music authentication using the guide in the app. Paste the browser request headers into the app to create a local auth file, or browse for one you already have. Click **Transfer all**.
