@@ -7,7 +7,10 @@ import json
 import os
 import sys
 from collections import Counter
+from functools import partial
 from pathlib import Path
+
+from requests import Session
 
 from . import __version__
 from .csvio import read_sources
@@ -15,11 +18,15 @@ from .planner import save_plan, save_review, scan
 from .transfer import apply_playlist, reviewed_video_ids, state_path_for
 
 
-def _client(auth: Path | None = None):
+def _client(auth: Path | None = None, request_timeout: float | None = None):
     from ytmusicapi import OAuthCredentials, YTMusic
 
+    session = None
+    if request_timeout is not None:
+        session = Session()
+        session.request = partial(session.request, timeout=request_timeout)
     if auth is None:
-        return YTMusic()
+        return YTMusic(requests_session=session)
     if not auth.is_file():
         raise ValueError(f"Authentication file not found: {auth}")
     client_id = os.environ.get("YTMUSIC_CLIENT_ID")
@@ -27,8 +34,10 @@ def _client(auth: Path | None = None):
     if auth.name.casefold().startswith("oauth"):
         if not client_id or not client_secret:
             raise ValueError("OAuth needs YTMUSIC_CLIENT_ID and YTMUSIC_CLIENT_SECRET environment variables")
-        return YTMusic(str(auth), oauth_credentials=OAuthCredentials(client_id, client_secret))
-    return YTMusic(str(auth))
+        return YTMusic(
+            str(auth), oauth_credentials=OAuthCredentials(client_id, client_secret), requests_session=session
+        )
+    return YTMusic(str(auth), requests_session=session)
 
 
 def _select_tracks(paths: list[Path], playlists: list[str] | None) -> list:

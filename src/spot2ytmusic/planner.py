@@ -53,12 +53,36 @@ class SearchCache:
         self.connection.close()
 
 
-def _search_with_retry(client: object, query: str, filter_name: str) -> list[dict]:
+def _check_cancelled(cancelled: Callable[[], bool] | None) -> None:
+    if cancelled and cancelled():
+        raise ScanCancelled("Scan stopped. Search results already found remain in the cache.")
+
+
+def _wait_or_cancel(seconds: float, cancelled: Callable[[], bool] | None) -> None:
+    if cancelled is None:
+        time.sleep(seconds)
+        return
+    end = time.monotonic() + seconds
+    while True:
+        _check_cancelled(cancelled)
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(0.1, remaining))
+
+
+def _search_with_retry(
+    client: object, query: str, filter_name: str, cancelled: Callable[[], bool] | None = None
+) -> list[dict]:
     waits = (3, 10, 30)
     for attempt in range(4):
+        _check_cancelled(cancelled)
         try:
-            return client.search(query, filter=filter_name, limit=10)
+            results = client.search(query, filter=filter_name, limit=10)
+            _check_cancelled(cancelled)
+            return results
         except (RequestException, YTMusicServerError) as exc:
+            _check_cancelled(cancelled)
             temporary = isinstance(exc, RequestException) or any(
                 code in str(exc) for code in ("HTTP 429", "HTTP 500", "HTTP 502", "HTTP 503", "HTTP 504")
             )
@@ -70,11 +94,18 @@ def _search_with_retry(client: object, query: str, filter_name: str) -> list[dic
                     file=sys.stderr,
                     flush=True,
                 )
-            time.sleep(waits[attempt])
+            _wait_or_cancel(waits[attempt], cancelled)
     raise RuntimeError("Search retries exhausted")
 
 
-def search_track(client: object, track: Track, cache: SearchCache, delay: float) -> PlanEntry:
+def search_track(
+    client: object,
+    track: Track,
+    cache: SearchCache,
+    delay: float,
+    cancelled: Callable[[], bool] | None = None,
+) -> PlanEntry:
+    _check_cancelled(cancelled)
     if track.source_type.casefold() == "unavailable" or track.title == "[Unavailable track]":
         return PlanEntry(track, "skip", note="Source track is unavailable on Spotify")
     if not track.title or not track.artist:
@@ -82,18 +113,20 @@ def search_track(client: object, track: Track, cache: SearchCache, delay: float)
     query = f"{track.title} {track.artist.split(';')[0]}"
     combined: list[dict] = []
     for filter_name in ("songs", "videos"):
+        _check_cancelled(cancelled)
         results = cache.get(query, filter_name)
         if results is None:
-            results = _search_with_retry(client, query, filter_name)
+            results = _search_with_retry(client, query, filter_name, cancelled)
             cache.put(query, filter_name, results)
             if delay:
-                time.sleep(delay)
+                _wait_or_cancel(delay, cancelled)
         combined.extend(results)
         status, candidates = rank_results(track, combined)
         if status == "auto":
             break
     unique = {result.get("videoId"): result for result in combined if result.get("videoId")}
     status, candidates = rank_results(track, list(unique.values()))
+    _check_cancelled(cancelled)
     return PlanEntry(
         track,
         status,
@@ -115,9 +148,8 @@ def scan(
     entries: list[PlanEntry] = []
     try:
         for index, track in enumerate(tracks, 1):
-            if cancelled and cancelled():
-                raise ScanCancelled("Scan stopped. Search results already found remain in the cache.")
-            entry = search_track(client, track, cache, delay)
+            _check_cancelled(cancelled)
+            entry = search_track(client, track, cache, delay, cancelled)
             entries.append(entry)
             if progress:
                 progress(index, len(tracks), entry)

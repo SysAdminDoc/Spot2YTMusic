@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 ctypes.windll.user32.SetProcessDPIAware()
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QApplication
 
@@ -59,14 +60,26 @@ def main() -> None:
                 "skip",
                 note="Source track is unavailable on Spotify",
             ),
+            PlanEntry(
+                Track("Morning Mix", 1, "Dreams", "Fleetwood Mac", "Rumours", 257),
+                "auto",
+                "bcdefghijkl",
+                [
+                    Candidate(
+                        "bcdefghijkl", "Dreams", "Fleetwood Mac", "Rumours", 257, "song", 0.98
+                    )
+                ],
+            ),
         ]
         plan = {"schema": 1, "tool_version": __version__, "entries": [item.to_dict() for item in samples]}
         save_plan(plan_path, plan)
         save_review(plan_path.with_suffix(".review.csv"), plan)
         window = MainWindow()
         window.output_edit.setText("Documents\\Spot2YTMusic")
-        window.sources_label.setText("Export_All.zip, 4 songs, 1 playlist")
-        window._load_plan(plan_path)
+        window.tracks = [entry.track for entry in samples]
+        window.sources_label.setText("Export_All.zip, 5 songs, 2 playlists")
+        window._load_plan(plan_path, from_scan=True)
+        window.playlist_list.item(1).setCheckState(Qt.Unchecked)
         window.table.selectRow(1)
         window.auth_edit.setPlaceholderText("Choose your local browser.json")
         window.show()

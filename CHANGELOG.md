@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2
+
+- Choose individual playlists from an imported CSV or Exportify ZIP before scanning.
+- Transfer selected playlists from a plan without reviewing unrelated playlists first.
+- Stop scans during a retry wait or after the current search request. Search requests use a 10-second network timeout, and completed results stay cached.
+
 ## v0.1.1
 
 - Include YouTube Music language files in the Windows EXE so scanning starts after an Exportify import.

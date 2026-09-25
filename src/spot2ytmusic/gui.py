@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import threading
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -22,6 +23,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
@@ -57,7 +60,8 @@ QPushButton:pressed { background: #6c7086; }
 QPushButton:disabled { color: #6c7086; background: #313244; }
 QPushButton#primary { background: #b4befe; color: #11111b; font-weight: 700; }
 QPushButton#primary:hover { background: #cba6f7; }
-QLineEdit, QComboBox, QPlainTextEdit, QTableView { background: #181825; border: 1px solid #45475a; border-radius: 6px; padding: 5px; selection-background-color: #585b70; }
+QPushButton#primary:disabled { background: #45475a; color: #9399b2; }
+QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background: #181825; border: 1px solid #45475a; border-radius: 6px; padding: 5px; selection-background-color: #585b70; }
 QTableView { alternate-background-color: #252538; }
 QHeaderView::section { background: #313244; color: #cdd6f4; padding: 6px; border: 0; }
 QProgressBar { background: #313244; border: 0; border-radius: 5px; text-align: center; }
@@ -74,7 +78,8 @@ QPushButton:hover { background: #bcc0cc; }
 QPushButton:disabled { color: #9ca0b0; background: #dce0e8; }
 QPushButton#primary { background: #8839ef; color: white; font-weight: 700; }
 QPushButton#primary:hover { background: #7287fd; }
-QLineEdit, QComboBox, QPlainTextEdit, QTableView { background: #ffffff; border: 1px solid #ccd0da; border-radius: 6px; padding: 5px; selection-background-color: #acb0be; }
+QPushButton#primary:disabled { background: #ccd0da; color: #9ca0b0; }
+QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background: #ffffff; border: 1px solid #ccd0da; border-radius: 6px; padding: 5px; selection-background-color: #acb0be; }
 QTableView { alternate-background-color: #e6e9ef; }
 QHeaderView::section { background: #dce0e8; padding: 6px; border: 0; }
 QProgressBar { background: #ccd0da; border: 0; border-radius: 5px; text-align: center; }
@@ -135,7 +140,7 @@ class Job(QThread):
                 cache = output / "search-cache.sqlite3"
                 self.note.emit("Searching YouTube Music. Results are cached as they arrive.")
                 plan = scan(
-                    _client(),
+                    _client(request_timeout=10),
                     tracks,
                     cache,
                     progress=lambda done, total, entry: self.updated.emit(
@@ -145,6 +150,8 @@ class Job(QThread):
                     ),
                     cancelled=self.stop_event.is_set,
                 )
+                if self.stop_event.is_set():
+                    raise ScanCancelled("Scan stopped. Search results already found remain in the cache.")
                 stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
                 plan_path = output / f"transfer-{stamp}.json"
                 suffix = 2
@@ -156,14 +163,17 @@ class Job(QThread):
                 self.completed.emit(plan_path)
             elif self.kind == "transfer":
                 store = ReviewStore(self.arguments["plan_path"])
+                names = self.arguments["playlists"]
+                if not names or any(name not in store.playlists for name in names):
+                    raise ValueError("Choose playlists from the open plan")
                 client = _client(self.arguments["auth"])
                 total = sum(
                     len(reviewed_video_ids(store.plan, store.review_path, name)[0])
-                    for name in store.playlists
+                    for name in names
                 )
                 done = 0
                 results = []
-                for name in store.playlists:
+                for name in names:
                     if self.stop_event.is_set():
                         raise TransferCancelled("Transfer stopped. Run it again to resume.")
                     ids, skipped = reviewed_video_ids(store.plan, store.review_path, name)
@@ -295,12 +305,26 @@ class MainWindow(QMainWindow):
         self.sources_label.setObjectName("muted")
         first.addWidget(self.sources_label, 1)
         action_layout.addLayout(first)
+        selection = QHBoxLayout()
+        selection.addWidget(QLabel("Playlists"))
+        self.playlist_list = QListWidget()
+        self.playlist_list.setFixedHeight(112)
+        self.playlist_list.itemChanged.connect(lambda _item: self._update_buttons())
+        selection.addWidget(self.playlist_list, 1)
+        selection_buttons = QVBoxLayout()
+        self.select_all_button = self._button("Select all", lambda: self._select_all_playlists(True))
+        self.select_none_button = self._button("Select none", lambda: self._select_all_playlists(False))
+        selection_buttons.addWidget(self.select_all_button)
+        selection_buttons.addWidget(self.select_none_button)
+        selection_buttons.addStretch()
+        selection.addLayout(selection_buttons)
+        action_layout.addLayout(selection)
         second = QHBoxLayout()
         second.addWidget(QLabel("Save plans in"))
         self.output_edit = QLineEdit(str(default_output()))
         second.addWidget(self.output_edit, 1)
         second.addWidget(self._button("Browse", self._choose_output))
-        self.scan_button = self._button("3  Scan all", self._start_scan, True)
+        self.scan_button = self._button("3  Scan selected", self._start_scan, True)
         second.addWidget(self.scan_button)
         self.open_plan_button = self._button("Open saved plan", self._choose_plan)
         second.addWidget(self.open_plan_button)
@@ -374,7 +398,7 @@ class MainWindow(QMainWindow):
         self.auth_edit.setPlaceholderText("Choose your local browser.json")
         transfer_layout.addWidget(self.auth_edit, 1)
         transfer_layout.addWidget(self._button("Browse", self._choose_auth))
-        self.transfer_button = self._button("4  Transfer all", self._start_transfer, True)
+        self.transfer_button = self._button("4  Transfer selected", self._start_transfer, True)
         transfer_layout.addWidget(self.transfer_button)
         page.addWidget(transfer)
 
@@ -435,6 +459,32 @@ class MainWindow(QMainWindow):
         if path:
             self._load_plan(Path(path))
 
+    def _selected_playlists(self) -> list[str]:
+        return [
+            self.playlist_list.item(index).data(Qt.UserRole)
+            for index in range(self.playlist_list.count())
+            if self.playlist_list.item(index).checkState() == Qt.Checked
+        ]
+
+    def _populate_playlists(self, counts: Counter[str], selected: set[str] | None = None) -> None:
+        self.playlist_list.blockSignals(True)
+        self.playlist_list.clear()
+        for name, count in counts.items():
+            item = QListWidgetItem(f"{name}  ({count} songs)")
+            item.setData(Qt.UserRole, name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if selected is None or name in selected else Qt.Unchecked)
+            self.playlist_list.addItem(item)
+        self.playlist_list.blockSignals(False)
+        self._update_buttons()
+
+    def _select_all_playlists(self, checked: bool) -> None:
+        self.playlist_list.blockSignals(True)
+        for index in range(self.playlist_list.count()):
+            self.playlist_list.item(index).setCheckState(Qt.Checked if checked else Qt.Unchecked)
+        self.playlist_list.blockSignals(False)
+        self._update_buttons()
+
     def _choose_auth(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "Choose YouTube Music authentication", str(Path.home()), "JSON (*.json)"
@@ -476,7 +526,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(buttons)
         dialog.exec()
 
-    def _load_plan(self, path: Path) -> None:
+    def _load_plan(self, path: Path, from_scan: bool = False) -> None:
         try:
             store = ReviewStore(path)
         except (OSError, ValueError, KeyError) as exc:
@@ -484,6 +534,15 @@ class MainWindow(QMainWindow):
             return
         self.store = store
         self.model.store = store
+        if from_scan:
+            counts = Counter(track.collection for track in self.tracks)
+            self._populate_playlists(counts, set(store.playlists))
+        else:
+            self.tracks = []
+            self.sources = []
+            self.sources_label.setText(f"Open plan: {path.name}")
+            counts = Counter(entry["track"]["collection"] for entry in store.plan["entries"])
+            self._populate_playlists(counts)
         self.playlist_combo.clear()
         self.playlist_combo.addItems(store.playlists)
         self._switch_playlist(self.playlist_combo.currentText())
@@ -579,42 +638,75 @@ class MainWindow(QMainWindow):
 
     def _update_buttons(self) -> None:
         busy = self.job is not None
+        selected = self._selected_playlists()
+        selected_set = set(selected)
         self.import_button.setEnabled(not busy)
         self.open_plan_button.setEnabled(not busy)
-        self.scan_button.setEnabled(bool(self.tracks) and not busy)
-        self.transfer_button.setEnabled(bool(self.store and not self.store.unresolved()) and not busy)
-        self.stop_button.setEnabled(busy)
+        self.playlist_list.setEnabled(not busy)
+        self.select_all_button.setEnabled(bool(self.playlist_list.count()) and not busy)
+        self.select_none_button.setEnabled(bool(self.playlist_list.count()) and not busy)
+        self.scan_button.setEnabled(bool(self.tracks and selected) and not busy)
+        can_transfer = bool(
+            self.store
+            and selected
+            and selected_set.issubset(self.store.playlists)
+            and not self.store.unresolved(selected_set)
+        )
+        self.transfer_button.setEnabled(can_transfer and not busy)
+        self.stop_button.setEnabled(busy and not self.job.stop_event.is_set())
         if self.store:
-            counts = self.store.counts()
+            if not selected:
+                self.count_label.setText("Choose playlists to transfer")
+            elif not selected_set.issubset(self.store.playlists):
+                self.count_label.setText("Scan selected playlists to transfer them")
+            else:
+                counts = self.store.counts(selected_set)
+                self.count_label.setText(
+                    f"Selected: {counts['use']} ready, {counts['review']} to review, {counts['skip']} skipped"
+                )
+        else:
             self.count_label.setText(
-                f"{counts['use']} ready, {counts['review']} to review, {counts['skip']} skipped"
+                f"{len(selected)} of {self.playlist_list.count()} playlists selected"
+                if self.playlist_list.count()
+                else "Import files to begin"
             )
 
     def _start_scan(self) -> None:
-        if not self.tracks:
+        selected = set(self._selected_playlists())
+        if not self.tracks or not selected:
             return
+        tracks = [track for track in self.tracks if track.collection in selected]
         output = Path(self.output_edit.text().strip()).expanduser()
         try:
             output.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
             self._error(str(exc))
             return
-        self._launch(Job("scan", tracks=self.tracks, output=output))
+        self._log(f"Scanning {len(selected)} playlists, {len(tracks)} songs")
+        self._launch(Job("scan", tracks=tracks, output=output))
 
     def _start_transfer(self) -> None:
         if not self.store:
             return
-        if self.store.unresolved():
-            self._error("Review every song before transferring")
+        selected = self._selected_playlists()
+        if not selected or not set(selected).issubset(self.store.playlists):
+            self._error("Choose playlists from the open plan")
+            return
+        if self.store.unresolved(set(selected)):
+            self._error("Review the selected playlists before transferring")
             return
         auth = Path(self.auth_edit.text().strip())
         if not auth.is_file():
             self._error("Choose a local YouTube Music authentication JSON file")
             return
-        self._launch(Job("transfer", plan_path=self.store.plan_path, auth=auth))
+        self._log(f"Transferring {len(selected)} selected playlists")
+        self._launch(Job("transfer", plan_path=self.store.plan_path, auth=auth, playlists=selected))
 
     def _launch(self, job: Job) -> None:
         self.job = job
+        self.stop_button.setText(
+            {"import": "Stop import", "scan": "Stop scan", "transfer": "Stop transfer"}[job.kind]
+        )
         self.progress.setRange(0, 0 if job.kind == "import" else 100)
         if job.kind != "import":
             self.progress.setValue(0)
@@ -636,13 +728,18 @@ class MainWindow(QMainWindow):
         if isinstance(result, dict) and result.get("kind") == "import":
             self.tracks = result["tracks"]
             self.sources = result["paths"]
+            self.store = None
+            self.model.store = None
+            self.playlist_combo.clear()
+            self.model.refresh()
+            self._populate_playlists(Counter(track.collection for track in self.tracks))
             self.sources_label.setText(
                 f"{len(self.sources)} file(s), {len(self.tracks)} songs, "
                 f"{len({track.collection for track in self.tracks})} playlists"
             )
             self._log("Imported " + self.sources_label.text())
         elif isinstance(result, Path):
-            self._load_plan(result)
+            self._load_plan(result, from_scan=True)
             self._log("Scan finished. Check the uncertain matches, then transfer.")
         else:
             self._log(f"Transfer finished: {len(result)} playlists")
@@ -658,12 +755,20 @@ class MainWindow(QMainWindow):
 
     def _job_finished(self) -> None:
         self.job = None
+        self.stop_button.setText("Stop")
         self._update_buttons()
 
     def _stop(self) -> None:
-        if self.job:
+        if self.job and not self.job.stop_event.is_set():
             self.job.stop_event.set()
-            self._log("Stopping after the current song or verified batch...")
+            self.stop_button.setText("Stopping...")
+            self.stop_button.setEnabled(False)
+            messages = {
+                "scan": "Stopping scan after the current YouTube Music request...",
+                "transfer": "Stopping transfer after the current verified batch...",
+                "import": "Stopping import after the current file...",
+            }
+            self._log(messages[self.job.kind])
 
     def closeEvent(self, event) -> None:
         if self.job:
@@ -691,7 +796,7 @@ def main() -> int:
         from PySide6.QtCore import QTimer
 
         try:
-            _client()
+            _client(request_timeout=10)
         except Exception:
             LOGGER.exception("Packaged YouTube Music client startup failed")
             return 1

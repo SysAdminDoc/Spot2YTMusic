@@ -43,14 +43,19 @@ class ReviewStore:
             decision == "use" and bool(VIDEO_ID.fullmatch((row["Chosen video ID"] or "").strip()))
         )
 
-    def counts(self) -> Counter[str]:
+    def counts(self, playlists: set[str] | None = None) -> Counter[str]:
         return Counter(
             (row["Decision"] or "").strip().casefold() if self.is_resolved(row) else "review"
             for row in self.rows
+            if playlists is None or row["Playlist"] in playlists
         )
 
-    def unresolved(self) -> int:
-        return sum(not self.is_resolved(row) for row in self.rows)
+    def unresolved(self, playlists: set[str] | None = None) -> int:
+        return sum(
+            not self.is_resolved(row)
+            for row in self.rows
+            if playlists is None or row["Playlist"] in playlists
+        )
 
     def decide(self, key: str, decision: str, video_id: str = "") -> None:
         if key not in self.by_key:
