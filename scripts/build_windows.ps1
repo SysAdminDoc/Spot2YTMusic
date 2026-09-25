@@ -31,7 +31,7 @@ Remove-Item Env:QT_QPA_PLATFORM
 if ($LASTEXITCODE -ne 0) { throw 'Package build failed.' }
 $version = (& $python -c 'from spot2ytmusic import __version__; print(__version__)').Trim()
 $archive = Join-Path $dist "Spot2YTMusic-v$version-windows.zip"
-Compress-Archive -LiteralPath @((Join-Path $dist 'Spot2YTMusic.exe'), (Join-Path $root 'LICENSE'), (Join-Path $root 'THIRD_PARTY_NOTICES.md'), (Join-Path $root 'LICENSES')) -DestinationPath $archive
+Compress-Archive -LiteralPath @((Join-Path $dist 'Spot2YTMusic.exe'), (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'THIRD_PARTY_NOTICES.md'), (Join-Path $root 'LICENSES')) -DestinationPath $archive
 $assets = @((Join-Path $dist 'Spot2YTMusic.exe'), $archive, (Join-Path $dist "spot2ytmusic-$version-py3-none-any.whl"), (Join-Path $dist "spot2ytmusic-$version.tar.gz"))
 $checksums = foreach ($asset in $assets) {
     $hash = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()

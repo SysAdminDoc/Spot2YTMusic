@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.0
+
+- Download reviewed YouTube recordings with yt-dlp and FFmpeg into local MP3 playlist folders.
+- Tag MP3s from Spotify metadata, write ordered M3U8 files, keep duplicate positions, and reuse completed audio on reruns.
+- Add a cancellable MP3 action to the desktop app and a `download` command that needs no YouTube Music authentication.
+- Show Spotify source album and duration beside YouTube candidate details and match notes during review.
+
 ## v0.1.3
 
 - Rebuild the desktop layout around playlist selection, match review, recording details, and transfer status.

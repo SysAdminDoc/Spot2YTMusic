@@ -14,7 +14,9 @@ from requests import Session
 
 from . import __version__
 from .csvio import read_sources
+from .download import download_playlists
 from .planner import save_plan, save_review, scan
+from .review_store import ReviewStore
 from .transfer import apply_playlist, reviewed_video_ids, state_path_for
 
 
@@ -83,6 +85,10 @@ def make_parser() -> argparse.ArgumentParser:
     apply_command.add_argument("--state", type=Path)
     apply_command.add_argument("--playlist-id", help="Use an existing empty YouTube Music playlist")
     apply_command.add_argument("--batch-size", type=int, default=20)
+    download_command = commands.add_parser("download", help="Save reviewed playlists as MP3 folders and M3U8 files")
+    download_command.add_argument("plan", type=Path)
+    download_command.add_argument("--playlist", action="append", dest="playlists", required=True)
+    download_command.add_argument("--output", type=Path, required=True)
     return parser
 
 
@@ -134,6 +140,18 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(f"Done: https://music.youtube.com/playlist?list={playlist_id}")
             return 0
+        if args.command == "download":
+            store = ReviewStore(args.plan)
+            report = download_playlists(
+                store, args.playlists, args.output,
+                progress=lambda done, total, message: print(message, flush=True),
+                note=lambda message: print(message, flush=True),
+            )
+            print(
+                f"Done: {report.saved} saved, {report.reused} already present, "
+                f"{report.skipped} skipped, {len(report.failures)} failed"
+            )
+            return 1 if report.failures else 0
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

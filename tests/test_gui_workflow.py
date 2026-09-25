@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from spot2ytmusic.cli import _client
+from spot2ytmusic.download import DownloadReport
 from spot2ytmusic.gui import MainWindow, save_browser_auth
 from spot2ytmusic.models import Track
 
@@ -90,6 +91,20 @@ def test_offscreen_scan_review_transfer_from_export_all(tmp_path: Path, monkeypa
     wait_for_job(app, window)
     assert fake.items == ["abcdefghijk"]
     assert "Transfer finished" in window.log.toPlainText()
+    window.auth_edit.clear()
+    window.download_output_edit.setText(str(tmp_path / "MP3s"))
+
+    def fake_download(store, playlists, output, **kwargs):
+        assert playlists == ["Road Trip"]
+        assert output == tmp_path / "MP3s"
+        kwargs["progress"](1, 1, "Saved")
+        return DownloadReport(total=1, saved=1, folders=[output / "Road Trip"])
+
+    monkeypatch.setattr("spot2ytmusic.gui.download_playlists", fake_download)
+    assert window.download_button.isEnabled()
+    window.download_button.click()
+    wait_for_job(app, window)
+    assert "MP3s: 1 saved" in window.log.toPlainText()
     window.close()
 
 

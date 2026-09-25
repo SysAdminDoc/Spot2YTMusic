@@ -4,4 +4,6 @@ The Windows app includes [PySide6 Essentials](https://pypi.org/project/PySide6-E
 
 The app also uses [ytmusicapi](https://github.com/sigma67/ytmusicapi), which is available under the MIT License. Its license is in the upstream repository.
 
+MP3 downloads call user-installed [yt-dlp](https://github.com/yt-dlp/yt-dlp), [FFmpeg](https://ffmpeg.org/), and Deno or Node.js. These executables are not bundled with the Windows app. See each project's site for its license and source.
+
 Spot2YTMusic itself is licensed under [MIT](LICENSE).

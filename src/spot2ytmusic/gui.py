@@ -43,6 +43,7 @@ from ytmusicapi.exceptions import YTMusicError
 from . import __version__
 from .cli import _client
 from .csvio import read_sources
+from .download import DownloadCancelled, DownloadReport, download_playlists
 from .planner import ScanCancelled, save_plan, save_review, scan
 from .review_store import ReviewStore
 from .transfer import TransferCancelled, apply_playlist, reviewed_video_ids, state_path_for
@@ -70,6 +71,9 @@ QPushButton:disabled { background-color: #253147; color: #7b8ba5; border-color: 
 QPushButton#primary { background-color: #2774ee; color: #ffffff; border-color: #3681f4; font-weight: 700; }
 QPushButton#primary:hover { background-color: #438bff; }
 QPushButton#primary:disabled { background-color: #263954; color: #8294ad; border-color: #35445c; }
+QPushButton#download { background-color: #187a5f; color: #ffffff; border-color: #279674; font-weight: 700; }
+QPushButton#download:hover { background-color: #229873; }
+QPushButton#download:disabled { background-color: #253e3a; color: #829c96; border-color: #35544b; }
 QPushButton#quiet { background: transparent; border-color: #35435d; color: #b9c9e1; }
 QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background-color: #101a2b; color: #e1eafa; border: 1px solid #35435d; border-radius: 6px; padding: 5px; selection-background-color: #245eaf; }
 QListWidget::item { min-height: 28px; padding: 3px 5px; }
@@ -104,6 +108,9 @@ QPushButton:disabled { background-color: #e9edf4; color: #98a5b8; border-color: 
 QPushButton#primary { background-color: #246fdf; color: #ffffff; border-color: #246fdf; font-weight: 700; }
 QPushButton#primary:hover { background-color: #4084ef; }
 QPushButton#primary:disabled { background-color: #d9e3f0; color: #9aabc2; border-color: #ccd8e9; }
+QPushButton#download { background-color: #198464; color: #ffffff; border-color: #198464; font-weight: 700; }
+QPushButton#download:hover { background-color: #239b78; }
+QPushButton#download:disabled { background-color: #d9ebe5; color: #8ba69d; border-color: #c5ddd5; }
 QPushButton#quiet { background: transparent; border-color: #cad5e6; color: #51637d; }
 QLineEdit, QComboBox, QListWidget, QPlainTextEdit, QTableView { background-color: #ffffff; color: #27344b; border: 1px solid #c8d3e5; border-radius: 6px; padding: 5px; selection-background-color: #b4d1ff; }
 QListWidget::item { min-height: 28px; padding: 3px 5px; }
@@ -230,7 +237,15 @@ class Job(QThread):
                     results.append((name, playlist_id))
                     self.note.emit(f"{name}: https://music.youtube.com/playlist?list={playlist_id}")
                 self.completed.emit(results)
-        except (ScanCancelled, TransferCancelled) as exc:
+            elif self.kind == "download":
+                store = ReviewStore(self.arguments["plan_path"])
+                report = download_playlists(
+                    store, self.arguments["playlists"], self.arguments["output"],
+                    progress=lambda done, total, message: self.updated.emit(done, total, message),
+                    note=self.note.emit, cancelled=self.stop_event.is_set,
+                )
+                self.completed.emit(report)
+        except (ScanCancelled, TransferCancelled, DownloadCancelled) as exc:
             self.failed.emit(str(exc))
         except Exception as exc:
             LOGGER.exception("%s job failed", self.kind)
@@ -395,7 +410,7 @@ class MainWindow(QMainWindow):
             source_layout,
             "1",
             "IMPORT & SELECT",
-            "Import your Spotify export, then choose which playlists to migrate.",
+            "Import your Spotify export, then choose which playlists to move or save.",
         )
         self.import_button = self._button("Import CSV or ZIP", self._choose_sources, True)
         self.import_button.setMinimumHeight(42)
@@ -432,6 +447,12 @@ class MainWindow(QMainWindow):
         output_row.addWidget(self.output_edit, 1)
         output_row.addWidget(self._button("Browse", self._choose_output))
         source_layout.addLayout(output_row)
+        source_layout.addWidget(QLabel("Save MP3 playlists in"))
+        download_row = QHBoxLayout()
+        self.download_output_edit = QLineEdit(str(Path.home() / "Music" / "Spot2YTMusic"))
+        download_row.addWidget(self.download_output_edit, 1)
+        download_row.addWidget(self._button("Browse", self._choose_download_output))
+        source_layout.addLayout(download_row)
         scan_row = QHBoxLayout()
         self.scan_button = self._button("Scan selected", self._start_scan, True)
         self.scan_button.setMinimumHeight(39)
@@ -521,6 +542,7 @@ class MainWindow(QMainWindow):
         song_info.addWidget(self.artist_label)
         self.origin_label = QLabel("")
         self.origin_label.setObjectName("muted")
+        self.origin_label.setWordWrap(True)
         song_info.addWidget(self.origin_label)
         song_info.addStretch()
         song_card_layout.addLayout(song_info, 1)
@@ -588,10 +610,10 @@ class MainWindow(QMainWindow):
         transfer_badge.setAlignment(Qt.AlignCenter)
         transfer_badge.setFixedSize(29, 29)
         transfer_heading.addWidget(transfer_badge)
-        transfer_title = QLabel("SEND TO YOUTUBE MUSIC")
+        transfer_title = QLabel("SEND OR SAVE PLAYLISTS")
         transfer_title.setObjectName("section")
         transfer_heading.addWidget(transfer_title)
-        transfer_heading.addWidget(QLabel("Authenticate, then transfer the playlists you checked."))
+        transfer_heading.addWidget(QLabel("Transfer to YouTube Music or save local MP3 playlists."))
         transfer_heading.addStretch()
         guide_button = self._button("Auth setup guide", lambda: self._open_url(AUTH_URL))
         guide_button.setObjectName("quiet")
@@ -607,15 +629,20 @@ class MainWindow(QMainWindow):
         auth_row.addWidget(self.auth_edit, 1)
         auth_row.addWidget(self._button("Browse", self._choose_auth))
         self.transfer_button = self._button("Transfer selected", self._start_transfer, True)
-        self.transfer_button.setMinimumWidth(210)
+        self.transfer_button.setMinimumWidth(160)
         auth_row.addWidget(self.transfer_button)
+        self.download_button = self._button("Download MP3s", self._start_download)
+        self.download_button.setObjectName("download")
+        self.download_button.setMinimumWidth(160)
+        self.download_button.setToolTip("Save only recordings you have permission to download")
+        auth_row.addWidget(self.download_button)
         transfer_layout.addLayout(auth_row)
         self.count_label = QLabel("Import files to begin")
         self.count_label.setObjectName("muted")
         transfer_layout.addWidget(self.count_label)
 
         progress_row = QHBoxLayout()
-        self.progress_label = QLabel("Ready to scan or transfer")
+        self.progress_label = QLabel("Ready to scan, transfer, or download")
         progress_row.addWidget(self.progress_label)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
@@ -680,6 +707,13 @@ class MainWindow(QMainWindow):
         path = QFileDialog.getExistingDirectory(self, "Save plans in", self.output_edit.text())
         if path:
             self.output_edit.setText(path)
+
+    def _choose_download_output(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self, "Save MP3 playlists in", self.download_output_edit.text()
+        )
+        if path:
+            self.download_output_edit.setText(path)
 
     def _choose_plan(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
@@ -808,7 +842,10 @@ class MainWindow(QMainWindow):
             track = entry["track"]
             self.song_label.setText(track["title"])
             self.artist_label.setText(track["artist"] or "Artist unavailable")
-            self.origin_label.setText(f"From: {track['collection']}")
+            album = track.get("album") or "Album unavailable"
+            duration = track.get("duration_seconds")
+            timing = f"  |  {duration // 60}:{duration % 60:02d}" if duration else ""
+            self.origin_label.setText(f"Spotify: {album}{timing}\nFrom: {track['collection']}")
             for item in entry["candidates"]:
                 self.candidates.addItem(
                     f"{item['title']}  |  {item['artist']}  |  {item['score']:.0%}",
@@ -840,7 +877,8 @@ class MainWindow(QMainWindow):
         album = candidate["album"] or candidate["result_type"].capitalize()
         duration = candidate["duration_seconds"]
         timing = f"  |  {duration // 60}:{duration % 60:02d}" if duration else ""
-        self.candidate_detail.setText(f"{candidate['artist']}  |  {album}{timing}")
+        reason = candidate.get("reason") or entry.get("note") or "Check this recording against the Spotify track"
+        self.candidate_detail.setText(f"YouTube: {candidate['artist']}  |  {album}{timing}\n{reason}")
 
     def _candidate_changed(self, index: int) -> None:
         if index >= 0:
@@ -901,13 +939,14 @@ class MainWindow(QMainWindow):
             and not self.store.unresolved(selected_set)
         )
         self.transfer_button.setEnabled(can_transfer and not busy)
+        self.download_button.setEnabled(can_transfer and not busy)
         self.stop_button.setEnabled(busy and not self.job.stop_event.is_set())
         self.stop_scan_button.setEnabled(
             busy and self.job.kind == "scan" and not self.job.stop_event.is_set()
         )
         if self.store:
             if not selected:
-                self.count_label.setText("Choose playlists to transfer")
+                self.count_label.setText("Choose playlists to transfer or download")
             elif not selected_set.issubset(self.store.playlists):
                 self.count_label.setText("Scan selected playlists to transfer them")
             else:
@@ -953,16 +992,33 @@ class MainWindow(QMainWindow):
         self._log(f"Transferring {len(selected)} selected playlists")
         self._launch(Job("transfer", plan_path=self.store.plan_path, auth=auth, playlists=selected))
 
+    def _start_download(self) -> None:
+        if not self.store:
+            return
+        selected = self._selected_playlists()
+        if not selected or not set(selected).issubset(self.store.playlists):
+            self._error("Choose playlists from the open plan")
+            return
+        if self.store.unresolved(set(selected)):
+            self._error("Review the selected playlists before downloading")
+            return
+        if not self.download_output_edit.text().strip():
+            self._error("Choose a folder for the MP3 playlists")
+            return
+        output = Path(self.download_output_edit.text().strip()).expanduser()
+        self._log(f"Saving {len(selected)} selected playlists to {output}")
+        self._launch(Job("download", plan_path=self.store.plan_path, playlists=selected, output=output))
+
     def _launch(self, job: Job) -> None:
         self.job = job
         self.stop_button.setText(
-            {"import": "Stop import", "scan": "Stop scan", "transfer": "Stop transfer"}[job.kind]
+            {"import": "Stop import", "scan": "Stop scan", "transfer": "Stop transfer", "download": "Stop download"}[job.kind]
         )
         self.progress.setRange(0, 0 if job.kind == "import" else 100)
         if job.kind != "import":
             self.progress.setValue(0)
         self.progress_label.setText(
-            {"import": "Importing playlists...", "scan": "Scanning YouTube Music...", "transfer": "Transferring to YouTube Music..."}[job.kind]
+            {"import": "Importing playlists...", "scan": "Scanning YouTube Music...", "transfer": "Transferring to YouTube Music...", "download": "Saving MP3 playlists..."}[job.kind]
         )
         self.progress_count_label.clear()
         job.updated.connect(self._progress)
@@ -981,6 +1037,7 @@ class MainWindow(QMainWindow):
             self.log.appendPlainText(message)
 
     def _completed(self, result: object) -> None:
+        has_failures = isinstance(result, DownloadReport) and bool(result.failures)
         if isinstance(result, dict) and result.get("kind") == "import":
             self.tracks = result["tracks"]
             self.sources = result["paths"]
@@ -997,12 +1054,19 @@ class MainWindow(QMainWindow):
             self._log("Imported " + self.sources_label.text())
         elif isinstance(result, Path):
             self._load_plan(result, from_scan=True)
-            self._log("Scan finished. Check the uncertain matches, then transfer.")
+            self._log("Scan finished. Check uncertain matches, then transfer or download.")
+        elif isinstance(result, DownloadReport):
+            self._log(
+                f"MP3s: {result.saved} saved, {result.reused} already present, "
+                f"{len(result.failures)} failed. Playlists are in {result.folders[0].parent if result.folders else 'the output folder'}"
+            )
+            if result.failures:
+                self._error("Some songs could not be downloaded. See the activity log, then try again.")
         else:
             self._log(f"Transfer finished: {len(result)} playlists")
         self.progress.setRange(0, 100)
         self.progress.setValue(100)
-        self.progress_label.setText("Finished")
+        self.progress_label.setText("Needs attention" if has_failures else "Finished")
 
     def _failed(self, message: str) -> None:
         self.progress.setRange(0, 100)
@@ -1030,6 +1094,7 @@ class MainWindow(QMainWindow):
                 "scan": "Stopping scan after the current YouTube Music request...",
                 "transfer": "Stopping transfer after the current verified batch...",
                 "import": "Stopping import after the current file...",
+                "download": "Stopping the current download. Completed MP3s will remain available...",
             }
             self._log(messages[self.job.kind])
 

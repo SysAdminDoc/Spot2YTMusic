@@ -81,9 +81,14 @@ def main() -> None:
         else:
             window.resize(1440, 900)
         window.output_edit.setText("Documents\\Spot2YTMusic")
+        window.download_output_edit.setText("Music\\Spot2YTMusic")
         window.tracks = [entry.track for entry in samples]
         window.sources_label.setText("Export_All.zip · 5 songs · 2 playlists")
         window._load_plan(plan_path, from_scan=True)
+        if "--ready" in sys.argv:
+            window.store.decide(samples[1].track.key, "use", "lmnopqrstuv")
+            window.model.refresh()
+            window._update_buttons()
         window.playlist_list.item(1).setCheckState(Qt.Unchecked)
         window.table.selectRow(1)
         window.auth_edit.setPlaceholderText("Choose your local browser.json")
@@ -92,11 +97,9 @@ def main() -> None:
         window.show()
         app.processEvents()
         filename = (
-            "desktop-compact.png"
-            if "--compact" in sys.argv
-            else "desktop-light.png"
-            if "--light" in sys.argv
-            else "desktop.png"
+            "desktop-ready.png" if "--ready" in sys.argv else
+            "desktop-compact.png" if "--compact" in sys.argv else
+            "desktop-light.png" if "--light" in sys.argv else "desktop.png"
         )
         target = Path(__file__).resolve().parents[1] / "docs" / "screenshots" / filename
         target.parent.mkdir(parents=True, exist_ok=True)
