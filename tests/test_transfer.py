@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from spot2ytmusic.transfer import RemoteStateError, apply_playlist
+from spot2ytmusic.transfer import RemoteStateError, TransferCancelled, apply_playlist
 
 
 class MusicClient:
@@ -94,4 +94,22 @@ def test_new_empty_playlist_can_be_verified(tmp_path: Path):
     client = EmptyPlaylistClient()
     ids = ["abcdefghijk", "lmnopqrstuv"]
     assert apply_playlist(client, "A", ids, tmp_path / "state.json") == "PLexample"
+    assert client.items == ids
+
+
+def test_stop_after_verified_batch_then_resume(tmp_path: Path):
+    client = MusicClient()
+    ids = ["abcdefghijk", "lmnopqrstuv", "mnopqrstuvw"]
+    state = tmp_path / "state.json"
+    stop = False
+
+    def progress(done, total):
+        nonlocal stop
+        if done == 2:
+            stop = True
+
+    with pytest.raises(TransferCancelled, match="resume"):
+        apply_playlist(client, "A", ids, state, batch_size=2, progress=progress, cancelled=lambda: stop)
+    assert client.items == ids[:2]
+    apply_playlist(client, "A", ids, state, batch_size=2)
     assert client.items == ids

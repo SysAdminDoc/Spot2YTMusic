@@ -7,6 +7,7 @@ import json
 import sqlite3
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -14,10 +15,15 @@ from urllib.parse import quote_plus
 from requests.exceptions import RequestException
 from ytmusicapi.exceptions import YTMusicServerError
 
+from . import __version__
 from .matching import rank_results
 from .models import PlanEntry, Track
 
 SCHEMA_VERSION = 1
+
+
+class ScanCancelled(RuntimeError):
+    """Raised when a user stops a scan between tracks."""
 
 
 class SearchCache:
@@ -58,11 +64,12 @@ def _search_with_retry(client: object, query: str, filter_name: str) -> list[dic
             )
             if not temporary or attempt == len(waits):
                 raise
-            print(
-                f"Search paused after a temporary YouTube Music error. Retrying in {waits[attempt]}s.",
-                file=sys.stderr,
-                flush=True,
-            )
+            if sys.stderr is not None:
+                print(
+                    f"Search paused after a temporary YouTube Music error. Retrying in {waits[attempt]}s.",
+                    file=sys.stderr,
+                    flush=True,
+                )
             time.sleep(waits[attempt])
     raise RuntimeError("Search retries exhausted")
 
@@ -96,14 +103,25 @@ def search_track(client: object, track: Track, cache: SearchCache, delay: float)
     )
 
 
-def scan(client: object, tracks: list[Track], cache_path: Path, delay: float = 0.25) -> dict:
+def scan(
+    client: object,
+    tracks: list[Track],
+    cache_path: Path,
+    delay: float = 0.25,
+    progress: Callable[[int, int, PlanEntry], None] | None = None,
+    cancelled: Callable[[], bool] | None = None,
+) -> dict:
     cache = SearchCache(cache_path)
     entries: list[PlanEntry] = []
     try:
         for index, track in enumerate(tracks, 1):
+            if cancelled and cancelled():
+                raise ScanCancelled("Scan stopped. Search results already found remain in the cache.")
             entry = search_track(client, track, cache, delay)
             entries.append(entry)
-            if index == 1 or index % 25 == 0 or index == len(tracks) or entry.status != "auto":
+            if progress:
+                progress(index, len(tracks), entry)
+            elif index == 1 or index % 25 == 0 or index == len(tracks) or entry.status != "auto":
                 print(
                     f"{index}/{len(tracks)}  {track.collection} #{track.position}: {entry.status}  {track.title}",
                     flush=True,
@@ -112,7 +130,7 @@ def scan(client: object, tracks: list[Track], cache_path: Path, delay: float = 0
         cache.close()
     return {
         "schema": SCHEMA_VERSION,
-        "tool_version": "0.0.3",
+        "tool_version": __version__,
         "created_at": datetime.now(UTC).isoformat(),
         "entries": [entry.to_dict() for entry in entries],
     }
@@ -127,7 +145,8 @@ def save_plan(path: Path, plan: dict) -> None:
 
 def save_review(path: Path, plan: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8-sig") as destination:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with temporary.open("w", newline="", encoding="utf-8-sig") as destination:
         writer = csv.writer(destination)
         writer.writerow(
             [
@@ -178,3 +197,4 @@ def save_review(path: Path, plan: dict) -> None:
                     item["note"],
                 ]
             )
+    temporary.replace(path)

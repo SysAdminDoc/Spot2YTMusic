@@ -1,88 +1,70 @@
 ![Spot2YTMusic](docs/hero.svg)
 
-[![Version](https://img.shields.io/badge/version-0.0.3-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.0.3) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-285f93)](#)
+[![Version](https://img.shields.io/badge/version-0.1.0-7659d6)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/tag/v0.1.0) [![License](https://img.shields.io/badge/license-MIT-2680b8)](LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20GUI-285f93)](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest)
 
-**Move Spotify playlists to YouTube Music and check the songs before they land.** Spot2YTMusic reads a CSV export, searches YouTube Music, and gives you a review sheet with candidate recordings. You choose what goes in. The transfer keeps the original order and repeated songs, then checks the destination after each batch.
+**Take your Spotify playlists to YouTube Music, with the right recordings in the right order.** Spot2YTMusic opens your playlist exports, searches YouTube Music, and lets you check uncertain matches before anything is added. It handles several playlists at once and can pick up a stopped transfer after checking what made it across.
 
-This is a local command line tool. It needs no Spotify developer account because it starts with a CSV. Searching does not require a YouTube Music login; creating playlists does.
+[Download the Windows app](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest) or [install the Python tool](#run-from-source). The app runs locally. It needs no Spotify developer account.
 
-## Why use it
+![The Spot2YTMusic desktop app showing a playlist and candidate recordings](docs/screenshots/desktop.png)
 
-- **Review the recordings.** Song titles alone can hide a live take, cover, clean edit, or karaoke version. The review sheet links to candidates and leaves uncertain matches for you to decide.
-- **Keep the playlist you made.** Original order and intentional duplicates carry over.
-- **Resume with a check.** After an interruption, the tool compares the YouTube Music playlist with the reviewed plan before adding more songs.
-- **Keep a local record.** The CSV, review sheet, and search cache stay on your computer. Search queries go to YouTube Music.
+## Move your playlists
 
-## Get a CSV
+1. Open **Exportify** from the app and sign in to Spotify. Download individual playlist CSVs or use **Export All** for a ZIP.
+2. Import the files. You can choose several CSVs, a ZIP, or both. Pick where to save the transfer plan, then click **Scan all**.
+3. Check songs marked **Needs review**. Listen to a suggested recording or search YouTube Music yourself. Choose **Use recording** or **Skip song**. Each choice is saved as you make it.
+4. Set up YouTube Music authentication using the guide in the app. Paste the browser request headers into the app to create a local auth file, or browse for one you already have. Click **Transfer all**.
 
-The file needs a song title and artist column. [Exportify](https://github.com/watsonbox/exportify) is one way to export Spotify playlists to CSV. Spot2YTMusic accepts its `Track Name`, `Artist Name(s)`, and `Track Duration (ms)` columns. A duration helps the matcher distinguish recordings.
+Strong matches are selected for you. The app waits for your decision on uncertain songs. It creates private playlists and verifies the song order after every batch. If a transfer stops, open the saved plan and run **Transfer all** again. Your review choices and completed batches are kept.
 
-You can also make a CSV yourself:
+The [Exportify project](https://github.com/watsonbox/exportify) runs in your browser. Spotify's own [Download your data](https://support.spotify.com/us/article/understanding-your-data/) produces JSON, which Spot2YTMusic does not read yet.
 
-```csv
-Collection,Position,Song,Artist,Album,Duration
-Road Trip,1,Midnight City,M83,Hurry Up We're Dreaming,4:03
-Road Trip,2,Kids,MGMT,Oracular Spectacular,5:02
-```
+## What stays on your computer
 
-`Album`, `Duration`, `Position`, and `Collection` are optional. With one playlist per file, the filename becomes the playlist name. A `Collection` column lets one file hold several playlists. Spotify's own [Download your data](https://support.spotify.com/us/article/understanding-your-data/) produces JSON, which this version does not read directly.
+The imported files, match cache, plan, review sheet, and transfer state stay local. Search queries containing song titles and artists go to YouTube Music. An auth file created in the app stays in your Windows profile. Don't share it or paste its contents into an issue.
 
-## Install
+Spot2YTMusic uses the unofficial [ytmusicapi](https://ytmusicapi.readthedocs.io/en/stable/) library for YouTube Music. A site change can interrupt a search or transfer. It won't copy audio, set likes, or keep future Spotify edits in sync. Some recordings may need a manual choice or may be unavailable.
 
-Install Python 3.11 or newer. On Windows:
+## Run from source
+
+Python 3.11 or newer works on Windows, macOS, and Linux. The graphical app uses Qt; the command line tool can be installed without it.
 
 ```powershell
 git clone https://github.com/SysAdminDoc/Spot2YTMusic.git
 cd Spot2YTMusic
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -e .
+.\.venv\Scripts\python -m pip install -e ".[gui]"
+.\.venv\Scripts\spot2ytmusic-gui
 ```
 
-On macOS or Linux:
+On macOS or Linux, use `python3 -m venv .venv`, `.venv/bin/python`, and `.venv/bin/spot2ytmusic-gui` instead. For the command line tool alone, install with `pip install -e .`.
 
-```sh
-git clone https://github.com/SysAdminDoc/Spot2YTMusic.git
-cd Spot2YTMusic
-python3 -m venv .venv
-.venv/bin/python -m pip install -e .
-```
+### Command line
 
-Use `.venv/bin/spot2ytmusic` for the commands below. The [latest release](https://github.com/SysAdminDoc/Spot2YTMusic/releases/latest) also has an installable wheel.
-
-## Search, review, transfer
-
-Inspect the file, then search. This example assumes the file is named `Road_Trip.csv`:
+The importer accepts Exportify CSVs and Export All ZIPs. It also accepts a CSV with `Song` and `Artist` columns. `Collection`, `Position`, `Album`, and `Duration` are optional. Without a collection column, the filename becomes the playlist name.
 
 ```powershell
-.\.venv\Scripts\spot2ytmusic inspect Road_Trip.csv
-.\.venv\Scripts\spot2ytmusic scan Road_Trip.csv --plan plans\road-trip.json
+.\.venv\Scripts\spot2ytmusic inspect Export_All.zip
+.\.venv\Scripts\spot2ytmusic scan Export_All.zip Extra_Playlist.csv --plan plans\transfer.json
 ```
 
-Scanning writes `plans\road-trip.review.csv` and a JSON plan. It makes no changes to your YouTube Music account. Open the review CSV and check the candidate links. Strong matches are marked `use`; uncertain rows have a blank `Decision`. Set each row to `use` with the right 11-character `Chosen video ID`, or `skip` it. Keep the `Key` column intact. The transfer refuses unresolved rows.
-
-Follow [ytmusicapi's browser authentication guide](https://ytmusicapi.readthedocs.io/en/stable/setup/browser.html) to make a local `browser.json` for the write step. Keep it private. OAuth also works through [ytmusicapi's setup guide](https://ytmusicapi.readthedocs.io/en/stable/setup/oauth.html); it needs `YTMUSIC_CLIENT_ID` and `YTMUSIC_CLIENT_SECRET` in your environment.
+The scan writes `plans\transfer.review.csv`. Review its candidate links. Set each undecided row to `use` with an 11-character `Chosen video ID`, or `skip` it. Keep the `Key` column. To transfer one playlist:
 
 ```powershell
-.\.venv\Scripts\spot2ytmusic apply plans\road-trip.json --playlist "Road Trip" --auth browser.json
+.\.venv\Scripts\spot2ytmusic apply plans\transfer.json --playlist "Road Trip" --auth browser.json
 ```
 
-The tool creates a private playlist. If a playlist with that name exists, it stops. To use an existing empty playlist, pass its ID with `--playlist-id`. Run the same `apply` command after an interruption; the saved state and remote song order must agree before it continues. For a CSV with several playlists, add `--playlist "Name"` to `scan` for each one you want and run `apply` once per playlist.
+Follow the [browser authentication guide](https://ytmusicapi.readthedocs.io/en/stable/setup/browser.html) to create `browser.json`. OAuth also works with the [ytmusicapi setup guide](https://ytmusicapi.readthedocs.io/en/stable/setup/oauth.html); set `YTMUSIC_CLIENT_ID` and `YTMUSIC_CLIENT_SECRET`. The app can create a browser auth file from headers you paste there. Don't commit an auth file to Git.
 
-## A few limits
-
-Spot2YTMusic builds playlists from song metadata. It does not copy audio, set YouTube Music likes, or sync future Spotify changes. Some recordings may be missing from YouTube Music. The write step uses the unofficial [ytmusicapi](https://ytmusicapi.readthedocs.io/en/stable/) library, so changes to YouTube Music can interrupt a transfer.
-
-Google also documents a [built-in transfer flow](https://support.google.com/youtubemusic/answer/14729358?hl=en). Spot2YTMusic is for CSV-based moves where you want to inspect the matches and keep the review sheet.
-
-Your CSV, review sheet, cache, and authentication file stay local. Search requests include song titles and artists. Do not share `browser.json`, `oauth.json`, or a plan with private playlist names.
-
-## Development
+## Build and test
 
 ```powershell
-.\.venv\Scripts\python -m pip install -e ".[dev]"
+.\.venv\Scripts\python -m pip install -e ".[gui,dev]"
 .\.venv\Scripts\python -m pytest -q
-.\.venv\Scripts\ruff check src tests
-.\.venv\Scripts\python -m build
+.\.venv\Scripts\ruff check src tests scripts
+.\scripts\build_windows.ps1
 ```
+
+The build script makes a single-file Windows EXE, a ZIP with the license notices, a wheel, a source archive, and SHA-256 checksums in `dist`. The EXE is currently unsigned, so Windows may show a publisher warning. The Qt runtime is covered by [third-party notices](THIRD_PARTY_NOTICES.md).
 
 Released under the [MIT License](LICENSE). If this project saved you some time, [support it here](https://ko-fi.com/X8K126YVER).

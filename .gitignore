@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+*.spec
 *.whl
 *.log
 browser.json

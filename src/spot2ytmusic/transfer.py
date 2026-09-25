@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -18,6 +19,15 @@ class ReviewError(ValueError):
 
 class RemoteStateError(RuntimeError):
     pass
+
+
+class TransferCancelled(RuntimeError):
+    """Raised after the last verified batch when a user stops a transfer."""
+
+
+def state_path_for(plan_path: Path, playlist: str) -> Path:
+    digest = hashlib.sha256(playlist.encode("utf-8")).hexdigest()[:8]
+    return plan_path.with_name(f"{plan_path.stem}.{digest}.state.json")
 
 
 def reviewed_video_ids(plan: dict, review_path: Path, playlist: str) -> tuple[list[str], int]:
@@ -98,6 +108,8 @@ def apply_playlist(
     state_path: Path,
     playlist_id: str | None = None,
     batch_size: int = 20,
+    progress: Callable[[int, int], None] | None = None,
+    cancelled: Callable[[], bool] | None = None,
 ) -> str:
     if not video_ids:
         raise ReviewError("No reviewed songs to transfer")
@@ -141,7 +153,11 @@ def apply_playlist(
         raise RemoteStateError("Previously verified songs are missing from the destination playlist")
     state["verified_count"] = position
     _save_state(state_path, state)
+    if progress:
+        progress(position, len(video_ids))
     while position < len(video_ids):
+        if cancelled and cancelled():
+            raise TransferCancelled(f"Transfer stopped after {position} verified songs. It can resume.")
         batch = video_ids[position : position + batch_size]
         try:
             client.add_playlist_items(playlist_id, videoIds=batch, duplicates=True)
@@ -155,5 +171,8 @@ def apply_playlist(
             position = _checked_prefix(client, playlist_id, video_ids, minimum=position + len(batch))
         state["verified_count"] = position
         _save_state(state_path, state)
-        print(f"{playlist}: verified {position}/{len(video_ids)} songs", flush=True)
+        if progress:
+            progress(position, len(video_ids))
+        else:
+            print(f"{playlist}: verified {position}/{len(video_ids)} songs", flush=True)
     return playlist_id

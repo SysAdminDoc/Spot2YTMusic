@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -11,9 +10,9 @@ from collections import Counter
 from pathlib import Path
 
 from . import __version__
-from .csvio import read_tracks
+from .csvio import read_sources
 from .planner import save_plan, save_review, scan
-from .transfer import apply_playlist, reviewed_video_ids
+from .transfer import apply_playlist, reviewed_video_ids, state_path_for
 
 
 def _client(auth: Path | None = None):
@@ -32,8 +31,8 @@ def _client(auth: Path | None = None):
     return YTMusic(str(auth))
 
 
-def _select_tracks(path: Path, playlists: list[str] | None) -> list:
-    tracks = read_tracks(path)
+def _select_tracks(paths: list[Path], playlists: list[str] | None) -> list:
+    tracks = read_sources(paths)
     if playlists:
         available = {track.collection for track in tracks}
         missing = set(playlists) - available
@@ -51,10 +50,10 @@ def make_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--version", action="version", version=f"Spot2YTMusic v{__version__}")
     commands = parser.add_subparsers(dest="command", required=True)
-    inspect = commands.add_parser("inspect", help="Show playlists and song counts in a CSV")
-    inspect.add_argument("csv", type=Path)
+    inspect = commands.add_parser("inspect", help="Show playlists and song counts in CSVs or ZIPs")
+    inspect.add_argument("sources", nargs="+", type=Path)
     scan_command = commands.add_parser("scan", help="Search YouTube Music and create a review CSV")
-    scan_command.add_argument("csv", type=Path)
+    scan_command.add_argument("sources", nargs="+", type=Path)
     scan_command.add_argument(
         "--playlist", action="append", dest="playlists", help="Include this playlist, repeat for several"
     )
@@ -85,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     args = make_parser().parse_args(argv)
     try:
         if args.command == "inspect":
-            counts = Counter(track.collection for track in read_tracks(args.csv))
+            counts = Counter(track.collection for track in read_sources(args.sources))
             if not counts:
                 raise ValueError("No songs found")
             for name, count in sorted(counts.items()):
@@ -97,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             review_path = args.review or args.plan.with_suffix(".review.csv")
             if not args.overwrite and (args.plan.exists() or review_path.exists()):
                 raise ValueError("Plan or review file exists. Choose another path or pass --overwrite")
-            tracks = _select_tracks(args.csv, args.playlists)
+            tracks = _select_tracks(args.sources, args.playlists)
             plan = scan(
                 _client(),
                 tracks,
@@ -120,13 +119,7 @@ def main(argv: list[str] | None = None) -> int:
                 _client(args.auth),
                 args.playlist,
                 video_ids,
-                args.state
-                or args.plan.with_name(
-                    args.plan.stem
-                    + "."
-                    + hashlib.sha256(args.playlist.encode("utf-8")).hexdigest()[:8]
-                    + ".state.json"
-                ),
+                args.state or state_path_for(args.plan, args.playlist),
                 args.playlist_id,
                 args.batch_size,
             )

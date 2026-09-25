@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.0
+
+- Add a Windows desktop app for export, batch scan, match review, and playlist transfer.
+- Import several Spotify CSVs or an Exportify Export All ZIP without unpacking it.
+- Save review decisions in the existing CSV and resume verified transfers from the app.
+- Create a local YouTube Music auth file from browser headers pasted into the app.
+- Package a single-file Windows EXE with a dark and light theme.
+
 ## v0.0.3
 
 - Rewrite the README around reviewed matches, CSV setup, privacy, and recovery.

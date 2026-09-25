@@ -1,2 +1,6 @@
 include CHANGELOG.md
-recursive-include docs *.svg *.md
+include THIRD_PARTY_NOTICES.md
+recursive-include LICENSES *.txt
+recursive-include docs *.svg *.md *.png
+recursive-include assets *.svg *.ico
+recursive-include scripts *.ps1 *.py
